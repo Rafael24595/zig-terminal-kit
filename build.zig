@@ -17,8 +17,10 @@ pub fn build(b: *std.Build) void {
         .root_module = test_mod,
     });
 
+    const test_step = b.step("test", "Run library tests");
     const run_tests = b.addRunArtifact(tests);
-
-    const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_tests.step);
+
+    const compile_tests_step = b.step("test-compile", "Compile library tests without running");
+    compile_tests_step.dependOn(&tests.step);
 }

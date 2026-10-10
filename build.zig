@@ -6,11 +6,13 @@ pub fn build(b: *std.Build) void {
     _ = b.addModule("zig_terminal_kit", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
+        .link_libc = target.result.os.tag != .windows,
     });
 
     const test_mod = b.createModule(.{
         .root_source_file = b.path("src/test.zig"),
         .target = target,
+        .link_libc = target.result.os.tag != .windows,
     });
 
     const tests = b.addTest(.{

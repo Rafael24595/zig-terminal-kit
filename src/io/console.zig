@@ -119,14 +119,18 @@ pub fn enableUTF8() !void {
 }
 
 pub fn winSize() !WinSize {
-    return switch (builtin.os.tag) {
-        .linux => linuxWinSize(),
-        .windows => windowsWinSize(),
-        else => WinSize{ .cols = 0, .rows = 0 },
-    };
+    if (comptime builtin.os.tag == .windows) {
+        return windowsWinSize();
+    }
+
+    if (comptime builtin.os.tag == .linux) {
+        return linuxWinSize();
+    }
+
+    return WinSize{ .cols = 0, .rows = 0 };
 }
 
-pub fn linuxWinSize() !WinSize {
+fn linuxWinSize() !WinSize {
     var ws: std.posix.winsize = undefined;
 
     const err = std.os.linux.ioctl(
@@ -145,7 +149,7 @@ pub fn linuxWinSize() !WinSize {
     return WinSize{ .cols = cols, .rows = rows };
 }
 
-pub fn windowsWinSize() !WinSize {
+fn windowsWinSize() !WinSize {
     var info: win.CONSOLE_SCREEN_BUFFER_INFO = undefined;
 
     const hConsole = k32.GetStdHandle(win.STD_OUTPUT_HANDLE) orelse return error.NoStdout;

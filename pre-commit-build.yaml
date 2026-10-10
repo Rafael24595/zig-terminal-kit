@@ -1,0 +1,24 @@
+# installer: https://github.com/Rafael24595/bash-hooks/blob/main/bash-hooks
+
+hooks:
+  remote:
+    repos:
+      - id: check-zig-context
+        origin: https://github.com/Rafael24595/bash-hooks
+        tag: 0.18.1
+        target: zig/sh
+        name: check-zig-context.sh
+        expect: false
+        return: true
+
+      - id: run-check
+        origin: https://github.com/Rafael24595/bash-hooks
+        tag: 0.18.1
+        target: zig/sh
+        name: run-check.sh
+
+      - id: run-tests
+        origin: https://github.com/Rafael24595/bash-hooks
+        tag: 0.18.1
+        target: zig/sh
+        name: run-tests.sh

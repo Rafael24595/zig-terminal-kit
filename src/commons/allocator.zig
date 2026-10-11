@@ -33,27 +33,35 @@ pub const AllocatorTracer = struct {
 
     pub fn resize(self: *AllocatorTracer, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
         const old_len = memory.len;
-        const result = self.base.rawResize(memory, alignment, new_len, ret_addr);
+
+        const result = self.base.rawResize(
+            memory,
+            alignment,
+            new_len,
+            ret_addr,
+        );
+
         if (result) {
-            if (new_len > old_len) {
-                self.bytes_in_use += new_len - old_len;
-            } else {
-                self.bytes_in_use -= old_len - new_len;
-            }
+            self.update_bytes(old_len, new_len);
         }
+
         return result;
     }
 
     pub fn remap(self: *AllocatorTracer, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
         const old_len = memory.len;
-        const result = self.base.rawRemap(memory, alignment, new_len, ret_addr);
+
+        const result = self.base.rawRemap(
+            memory,
+            alignment,
+            new_len,
+            ret_addr,
+        );
+
         if (result != null) {
-            if (new_len > old_len) {
-                self.bytes_in_use += new_len - old_len;
-            } else {
-                self.bytes_in_use -= old_len - new_len;
-            }
+            self.update_bytes(old_len, new_len);
         }
+
         return result;
     }
 
@@ -64,6 +72,20 @@ pub const AllocatorTracer = struct {
 
     pub fn bytes(self: *const AllocatorTracer) usize {
         return self.bytes_in_use;
+    }
+
+    fn update_bytes(self: *AllocatorTracer, old_len: usize, new_len: usize) void {
+        if (new_len >= old_len) {
+            self.bytes_in_use += new_len - old_len;
+            return;
+        }
+
+        const decrease = old_len - new_len;
+        if (comptime std.debug.runtime_safety) {
+            std.debug.assert(self.bytes_in_use >= decrease);
+        }
+
+        self.bytes_in_use -= decrease;
     }
 };
 

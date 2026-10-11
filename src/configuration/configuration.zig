@@ -9,16 +9,34 @@ const ParseError = error{
     MissingArgument,
 };
 
+/// Describes a command-line flag and its help-text metadata.
 pub const Flag = struct {
+    /// Short form of the flag, such as "-v".
     flag_short: []const u8,
+    /// Optional long form of the flag, such as "--verbose".
     flag_long: ?[]const u8 = null,
+    /// Optional type label displayed in the help text.
     type: ?[]const u8 = null,
+    /// Main description displayed next to the flag.
     desc: []const u8,
+    /// Internal or canonical name used in messages and parsing.
     name: []const u8,
+    /// Optional additional description displayed on a separate line.
     aux_desc: ?[]const u8 = null,
 };
 
-pub fn format_flag(printer: *Printer, flag: Flag, default: TypeFormatter) ![]u8 {
+/// Formats a flag as a help-text row.
+///
+/// Optional fields are rendered as empty strings when absent.
+/// A default value is appended unless it is `.none`.
+/// An auxiliary description, when present, is displayed on a new line.
+///
+/// The returned slice is managed by the supplied Printer.
+pub fn format_flag(
+    printer: *Printer,
+    flag: Flag,
+    default: TypeFormatter,
+) ![]u8 {
     const flag_short = flag.flag_short;
     const flag_desc = flag.desc;
 
@@ -32,7 +50,10 @@ pub fn format_flag(printer: *Printer, flag: Flag, default: TypeFormatter) ![]u8 
         flag_type = flag.type.?;
     }
 
-    var data = try printer.format("  {s:<3} {s:<12}  {s:<8}  {s}", .{ flag_short, flag_long, flag_type, flag_desc });
+    var data = try printer.format(
+        "  {s:<3} {s:<12}  {s:<8}  {s}",
+        .{ flag_short, flag_long, flag_type, flag_desc },
+    );
 
     if (default != .none) {
         const d = try default.format(printer);
@@ -46,7 +67,22 @@ pub fn format_flag(printer: *Printer, flag: Flag, default: TypeFormatter) ![]u8 
     return try printer.format("{s} \n", .{data});
 }
 
-pub fn parse_float(comptime T: type, printer: *Printer, args: [][:0]u8, i: usize, flag: Flag, min: ?T, max: ?T) !T {
+/// Parses the argument following a flag as a floating-point value.
+///
+/// If min or max is provided, the parsed value is clamped to those bounds.
+/// Missing or invalid values are reported and terminate the process with
+/// exit code 1.
+///
+/// The caller must ensure that T is a supported floating-point type.
+pub fn parse_float(
+    comptime T: type,
+    printer: *Printer,
+    args: [][:0]u8,
+    i: usize,
+    flag: Flag,
+    min: ?T,
+    max: ?T,
+) !T {
     if (i + 1 >= args.len) {
         try printer.printf("Missing argument for {s} ({s})\n", .{ flag.flag_short, flag.name });
         std.process.exit(1);
@@ -96,7 +132,22 @@ fn parse_float_value(
     return result;
 }
 
-pub fn parse_int(comptime T: type, printer: *Printer, args: [][:0]u8, i: usize, flag: Flag, min: ?T, max: ?T) !T {
+/// Parses the argument following a flag as a base-10 integer.
+///
+/// If min or max is provided, the parsed value is clamped to those bounds.
+/// Missing or invalid values are reported and terminate the process with
+/// exit code 1.
+///
+/// The caller must ensure that T is a supported integer type.
+pub fn parse_int(
+    comptime T: type,
+    printer: *Printer,
+    args: [][:0]u8,
+    i: usize,
+    flag: Flag,
+    min: ?T,
+    max: ?T,
+) !T {
     if (i + 1 >= args.len) {
         try printer.printf("Missing argument for {s} ({s})\n", .{ flag.flag_short, flag.name });
         std.process.exit(1);
@@ -146,7 +197,19 @@ fn parse_int_value(
     return result;
 }
 
-pub fn parse_enum(comptime T: type, printer: *Printer, args: [][:0]u8, i: usize, flag: Flag) !T {
+/// Parses the argument following a flag as an enum field name.
+///
+/// Passing "help" prints the available enum options using the flag name
+/// as the heading, then exits successfully.
+/// Invalid values print an error and the available options before exiting
+/// with exit code 1.
+pub fn parse_enum(
+    comptime T: type,
+    printer: *Printer,
+    args: [][:0]u8,
+    i: usize,
+    flag: Flag,
+) !T {
     if (i + 1 >= args.len) {
         try printer.printf("Missing argument for {s} ({s})\n", .{ flag.flag_short, flag.name });
         std.process.exit(1);

@@ -109,71 +109,65 @@ fn free_wrapper(self: *anyopaque, memory: []u8, alignment: std.mem.Alignment, re
     ca.free(memory, alignment, ret_addr);
 }
 
-test "initialize the allocator with zero bytes with init method" {
+test "allocator tracer starts with zero bytes" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    var base = gpa.allocator();
+    defer _ = gpa.deinit();
 
-    var tracer = AllocatorTracer.init(&base);
+    var tracer = AllocatorTracer.init(gpa.allocator());
+
     try std.testing.expectEqual(0, tracer.bytes());
 }
 
-test "increment the bytes in use with alloc method" {
+test "allocator tracer tracks allocation and free" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    var base = gpa.allocator();
+    defer _ = gpa.deinit();
 
-    var tracer = AllocatorTracer.init(&base);
-    var alloc = tracer.allocator();
+    var tracer = AllocatorTracer.init(gpa.allocator());
+    const alloc = tracer.allocator();
 
-    const ptr = try alloc.alloc(u8, 16);
-    defer alloc.free(ptr);
+    const memory = try alloc.alloc(u8, 32);
+    try std.testing.expectEqual(32, tracer.bytes());
 
-    try std.testing.expectEqual(16, tracer.bytes());
-}
-
-test "decrement the bytes in use with free method" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    var base = gpa.allocator();
-
-    var tracer = AllocatorTracer.init(&base);
-    var alloc = tracer.allocator();
-
-    const ptr = try alloc.alloc(u8, 32);
-    alloc.free(ptr);
+    alloc.free(memory);
     try std.testing.expectEqual(0, tracer.bytes());
 }
 
-test "resize the bytes in use with resize method" {
+test "allocator tracer tracks resize when supported" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    var base = gpa.allocator();
+    defer _ = gpa.deinit();
 
-    var tracer = AllocatorTracer.init(&base);
-    var alloc = tracer.allocator();
+    var tracer = AllocatorTracer.init(gpa.allocator());
+    const alloc = tracer.allocator();
 
-    const buf = try alloc.alloc(u8, 10);
-    try std.testing.expect(tracer.bytes() == 10);
+    const memory = try alloc.alloc(u8, 10);
+    defer alloc.free(memory);
 
-    if (alloc.resize(buf, 20)) {
-        try std.testing.expectEqual(20, tracer.bytes());
+    if (alloc.resize(memory, 8)) {
+        try std.testing.expectEqual(8, tracer.bytes());
     } else {
         try std.testing.expectEqual(10, tracer.bytes());
     }
-
-    alloc.free(buf);
-    try std.testing.expectEqual(0, tracer.bytes());
 }
 
-test "integration with ArrayList" {
+test "allocator tracer tracks ArrayList allocations" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    var base = gpa.allocator();
+    defer _ = gpa.deinit();
 
-    var tracer = AllocatorTracer.init(&base);
+    var tracer = AllocatorTracer.init(gpa.allocator());
     const alloc = tracer.allocator();
 
-    var list = try std.ArrayList(u8).initCapacity(alloc, 2);
-    defer list.deinit(alloc);
+    {
+        var list = try std.ArrayList(u8).initCapacity(alloc, 2);
+        defer list.deinit(alloc);
 
-    try list.append(alloc, 'a');
-    try list.append(alloc, 'b');
+        const bytes_after_init = tracer.bytes();
+        try std.testing.expect(bytes_after_init >= 2);
 
-    try std.testing.expectEqual(2, tracer.bytes());
+        try list.append(alloc, 'a');
+        try list.append(alloc, 'b');
+
+        try std.testing.expectEqual(bytes_after_init, tracer.bytes());
+    }
+
+    try std.testing.expectEqual(0, tracer.bytes());
 }

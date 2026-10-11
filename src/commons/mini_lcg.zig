@@ -1,8 +1,17 @@
 const std = @import("std");
 
+/// A small, deterministic pseudo-random number generator based on a
+/// Linear Congruential Generator (LCG).
+///
+/// This generator is intended for simple non-cryptographic use cases.
+/// It is not suitable for security-sensitive applications.
 pub const MiniLCG = struct {
+    /// Internal generator state. The default seed is 1.
     seed: u64 = 1,
 
+    /// Initializes the generator with the given seed.
+    ///
+    /// Identical seeds produce identical sequences of values.
     pub fn init(seed: u64) @This() {
         return MiniLCG{ .seed = seed };
     }
@@ -14,31 +23,48 @@ pub const MiniLCG = struct {
         return self.seed;
     }
 
-    pub fn randInRange(self: *@This(), min: u8, max: u8) u8 {
+    /// Returns a pseudo-random integer in the inclusive range [min, max].
+    ///
+    /// If min exceeds max, the bounds are swapped when runtime safety
+    /// assertions are disabled. With runtime safety enabled, the assertion
+    /// detects the invalid argument order.
+    ///
+    /// The generated value is reduced using modulo, which can introduce
+    /// a small distribution bias for some ranges.
+    pub fn rand_in_range(self: *@This(), min: u8, max: u8) u8 {
+        if (comptime std.debug.runtime_safety) {
+            std.debug.assert(min <= max);
+        }
+
         var rnd: u64 = self.next();
 
         rnd = ((rnd >> 16) ^ (rnd >> 8)) & 0xFFFF;
 
-        const min64: u64 = @intCast(min);
-        const max64: u64 = @intCast(max);
+        const lower: u64 = @intCast(
+            @min(min, max),
+        );
 
-        const range: u64 = max64 - min64 + 1;
+        const upper: u64 = @intCast(
+            @max(min, max),
+        );
+
+        const range: u64 = upper - lower + 1;
         const value: u64 = rnd % range;
 
-        return @intCast(min64 + value);
+        return @intCast(lower + value);
     }
 };
 
 test "random number in range with specific seed" {
     var lcg = MiniLCG.init(1234);
 
-    var num = lcg.randInRange(0, 10);
+    var num = lcg.rand_in_range(0, 10);
     try std.testing.expectEqual(1, num);
 
-    num = lcg.randInRange(0, 10);
+    num = lcg.rand_in_range(0, 10);
     try std.testing.expectEqual(6, num);
 
-    num = lcg.randInRange(0, 10);
+    num = lcg.rand_in_range(0, 10);
     try std.testing.expectEqual(9, num);
 }
 
@@ -47,8 +73,8 @@ test "lcg determinism" {
     var b = MiniLCG.init(42);
 
     for (0..10) |_| {
-        const ra = a.randInRange(0, 100);
-        const rb = b.randInRange(0, 100);
+        const ra = a.rand_in_range(0, 100);
+        const rb = b.rand_in_range(0, 100);
         try std.testing.expectEqual(ra, rb);
     }
 }
@@ -58,8 +84,8 @@ test "different seeds produce different sequences" {
     var b = MiniLCG.init(2);
 
     for (0..10) |_| {
-        const ra = a.randInRange(0, 255);
-        const rb = b.randInRange(0, 255);
+        const ra = a.rand_in_range(0, 255);
+        const rb = b.rand_in_range(0, 255);
         try std.testing.expect(ra != rb);
     }
 }
@@ -68,7 +94,7 @@ test "respects range boundaries" {
     var lcg = MiniLCG.init(9876);
 
     for (0..1000) |_| {
-        const v = lcg.randInRange(5, 15);
+        const v = lcg.rand_in_range(5, 15);
         try std.testing.expect(v >= 5 and v <= 15);
     }
 }
@@ -76,12 +102,12 @@ test "respects range boundaries" {
 test "single value range returns same result" {
     var lcg = MiniLCG.init(123);
     for (0..10) |_| {
-        try std.testing.expectEqual(7, lcg.randInRange(7, 7));
+        try std.testing.expectEqual(7, lcg.rand_in_range(7, 7));
     }
 }
 
 test "handles seed overflow" {
     var lcg = MiniLCG.init(std.math.maxInt(u64));
-    const v = lcg.randInRange(0, 255);
+    const v = lcg.rand_in_range(0, 255);
     try std.testing.expect(v <= 255);
 }

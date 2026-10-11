@@ -131,7 +131,7 @@ test "initial state has no pending requests" {
     try testing.expect(!state.exit.load(.monotonic));
     try testing.expect(!state.reload.load(.monotonic));
 
-    try testing.expectEqual(@as(u64, 0), state.speed_ms.load(.monotonic));
+    try testing.expectEqual(0, state.speed_ms.load(.monotonic));
 }
 
 test "set_speed updates the frame interval" {

@@ -1,40 +1,75 @@
 const std = @import("std");
 
+const testing = std.testing;
+
+/// Stores shared runtime state for a terminal application.
+///
+/// Provides coordination for frame timing, pause handling, exit and reload
+/// requests, and thread notifications.
+///
+/// Notifications are coalesced: multiple pending notifications may be
+/// represented by a single wake-up.
 pub const RuntimeState = struct {
+    /// Protects the condition variable and notification state.
     mutex: std.Thread.Mutex = .{},
 
+    /// Timestamp, in milliseconds, at which the runtime effectively started.
     start_timestamp: std.atomic.Value(i64) = .init(0),
+    /// Timestamp, in milliseconds, at which the current pause began.
     pause_timestamp: std.atomic.Value(i64) = .init(0),
 
+    /// Target frame interval, in milliseconds.
     speed_ms: std.atomic.Value(u64) = .init(0),
 
+    /// Indicates whether the runtime is currently paused.
     pause: std.atomic.Value(bool) = .init(false),
+    /// Indicates that the runtime has been requested to exit
     exit: std.atomic.Value(bool) = .init(false),
+    /// Indicates that a reload has been requested.
     reload: std.atomic.Value(bool) = .init(false),
 
+    /// Wakes a thread waiting for a runtime notification.
     cond: std.Thread.Condition = .{},
+
+    /// Indicates whether a notification is waiting to be consumed.
+    ///
+    /// Access must be synchronized using `mutex`.
     notification_pending: bool = false,
 
-    pub fn setSpeed(self: *@This(), speed: u64) void {
+    /// Updates the target frame interval and notifies waiting threads.
+    ///
+    /// `speed` is expressed in milliseconds.
+    pub fn set_speed(self: *@This(), speed: u64) void {
         self.speed_ms.store(speed, .release);
         self.notify();
     }
 
-    pub fn requestExit(self: *@This()) void {
+     /// Requests that the runtime terminate and notifies waiting threads.
+    pub fn request_exit(self: *@This()) void {
         self.exit.store(true, .release);
         self.notify();
     }
 
-    pub fn requestReload(self: *@This()) void {
+    /// Requests a reload and notifies waiting threads.
+    pub fn request_reload(self: *@This()) void {
         self.reload.store(true, .release);
         self.notify();
     }
 
-    pub fn consumeReload(self: *@This()) bool {
+    /// Consumes a pending reload request.
+    ///
+    /// Returns `true` if a request was pending and has been cleared;
+    /// otherwise, returns `false`.
+    pub fn consume_reload(self: *@This()) bool {
         return self.reload.swap(false, .acq_rel);
     }
 
-    pub fn togglePause(self: *@This()) void {
+    /// Toggles the runtime between paused and running states.
+    ///
+    /// When pausing, records the pause timestamp.
+    /// When resuming, adjusts the start timestamp to exclude the paused
+    /// duration.
+    pub fn toggle_pause(self: *@This()) void {
         const now = std.time.milliTimestamp();
 
         const was_paused = self.pause.swap(
@@ -57,7 +92,13 @@ pub const RuntimeState = struct {
         self.notify();
     }
 
-    pub fn waitForFrame(self: *@This(), timeout_ns: u64) !void {
+    /// Waits for a notification or until the specified timeout expires.
+    ///
+    /// `timeout_ns` is expressed in nanoseconds.
+    ///
+    /// Returns when a notification is consumed or the timeout expires.
+    /// Propagates errors other than timeout errors.
+    pub fn wait_for_frame(self: *@This(), timeout_ns: u64) !void {
         self.mutex.lock();
         defer self.mutex.unlock();
 

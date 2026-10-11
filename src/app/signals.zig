@@ -3,14 +3,23 @@ const builtin = @import("builtin");
 
 const windows = std.os.windows;
 
+/// A callback invoked when a supported interrupt signal is received.
+/// The callback runs on the signal receiver thread, not inside the OS signal handler.
 pub const Callback = *const fn (*anyopaque) void;
 
+/// Errors that can occur while installing or uninstalling signal handling.
 pub const InstallError = error{
+    /// The signal handler is already installed.
     AlreadyInstalled,
+    /// The signal handler is not installed.
     InstallationInProgress,
+    /// The signal handler is being uninstalled.
     UninstallationInProgress,
+    /// Failed to create a pipe for signal communication.
     FailedToCreatePipe,
+    /// Failed to set the console control handler.
     FailedToSetCtrlHandler,
+    /// Failed to create an event for signal communication.
     FailedToCreateEvent,
 };
 
@@ -45,6 +54,16 @@ var windows_event: ?windows.HANDLE = null;
 
 extern "kernel32" fn SetEvent(hEvent: windows.HANDLE) callconv(.winapi) windows.BOOL;
 
+/// Installs interrupt handling and starts the receiver thread.
+///
+/// The context pointer is passed to the callback without modification.
+/// The caller must keep the context alive until uninstall has completed.
+///
+/// Returns AlreadyInstalled if signal handling is already installed.
+/// Returns an error if another installation or uninstallation is in progress.
+///
+/// The callback must not call uninstall from the receiver thread, because
+/// uninstallation waits for that thread to terminate.
 pub fn install(ctx: *anyopaque, cb: Callback) !void {
     state_mutex.lock();
 
@@ -89,6 +108,13 @@ pub fn install(ctx: *anyopaque, cb: Callback) !void {
     state_mutex.unlock();
 }
 
+/// Stops signal handling, waits for the receiver thread to terminate,
+/// and releases the resources owned by the active installation.
+///
+/// Does nothing if signal handling is not installed.
+/// Returns an error if installation or uninstallation is already in progress.
+///
+/// The caller must not invoke this function from the receiver callback.
 pub fn uninstall() !void {
     state_mutex.lock();
 

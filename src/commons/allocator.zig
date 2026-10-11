@@ -62,7 +62,7 @@ pub const AllocatorTracer = struct {
         self.base.rawFree(memory, alignment, ret_addr);
     }
 
-    pub fn bytes(self: *AllocatorTracer) usize {
+    pub fn bytes(self: *const AllocatorTracer) usize {
         return self.bytes_in_use;
     }
 };

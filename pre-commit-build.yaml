@@ -17,6 +17,12 @@ hooks:
         target: zig/sh
         name: run-check.sh
 
+      - id: run-fmt
+        origin: https://github.com/Rafael24595/bash-hooks
+        tag: 0.18.1
+        target: zig/sh
+        name: run-fmt.sh
+
       - id: run-tests
         origin: https://github.com/Rafael24595/bash-hooks
         tag: 0.18.1

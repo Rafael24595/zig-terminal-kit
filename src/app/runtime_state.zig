@@ -44,7 +44,7 @@ pub const RuntimeState = struct {
         self.notify();
     }
 
-     /// Requests that the runtime terminate and notifies waiting threads.
+    /// Requests that the runtime terminate and notifies waiting threads.
     pub fn request_exit(self: *@This()) void {
         self.exit.store(true, .release);
         self.notify();

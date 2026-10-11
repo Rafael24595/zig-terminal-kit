@@ -351,3 +351,25 @@ fn dispatch_callback() void {
     const ctx = context orelse return;
     cb(ctx);
 }
+
+fn testCallback(ctx: *anyopaque) void {
+    const calls_ptr: *usize = @ptrCast(@alignCast(ctx));
+    calls_ptr.* = calls_ptr.* + 1;
+}
+
+test "signals can be installed and uninstalled repeatedly" {
+    var calls: usize = 0;
+
+    try install(&calls, testCallback);
+    defer uninstall() catch {};
+
+    try std.testing.expectError(
+        InstallError.AlreadyInstalled,
+        install(&calls, testCallback),
+    );
+
+    try uninstall();
+
+    try install(&calls, testCallback);
+    try uninstall();
+}

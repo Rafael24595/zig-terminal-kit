@@ -82,3 +82,55 @@ pub const RuntimeState = struct {
         self.cond.signal();
     }
 };
+
+test "initial state has no pending requests" {
+    var state = RuntimeState{};
+
+    try testing.expect(!state.pause.load(.monotonic));
+    try testing.expect(!state.exit.load(.monotonic));
+    try testing.expect(!state.reload.load(.monotonic));
+
+    try testing.expectEqual(@as(u64, 0), state.speed_ms.load(.monotonic));
+}
+
+test "set_speed updates the frame interval" {
+    var state = RuntimeState{};
+
+    state.set_speed(100);
+
+    try testing.expectEqual(
+        @as(u64, 100),
+        state.speed_ms.load(.monotonic),
+    );
+}
+
+test "request_exit sets the exit flag" {
+    var state = RuntimeState{};
+
+    state.request_exit();
+
+    try testing.expect(state.exit.load(.monotonic));
+}
+
+test "reload request is consumed exactly once" {
+    var state = RuntimeState{};
+
+    state.request_reload();
+
+    try testing.expect(state.consume_reload());
+    try testing.expect(!state.consume_reload());
+}
+
+test "pending notification is consumed without waiting" {
+    var state = RuntimeState{};
+
+    state.set_speed(50);
+
+    try state.wait_for_frame(std.time.ns_per_s);
+
+    state.mutex.lock();
+    const pending = state.notification_pending;
+    state.mutex.unlock();
+
+    try testing.expect(!pending);
+}

@@ -23,6 +23,8 @@ const ENABLE_PROCESSED_INPUT: win.DWORD = 0x0001;
 const ENABLE_LINE_INPUT: win.DWORD = 0x0002;
 const ENABLE_ECHO_INPUT: win.DWORD = 0x0004;
 
+const ENABLE_VIRTUAL_TERMINAL_PROCESSING: win.DWORD = 0x0004;
+
 var original_termios: ?std.posix.termios = null;
 var original_mode: win.DWORD = 0;
 
@@ -109,12 +111,17 @@ pub fn enable_ansi() !void {
         win.STD_OUTPUT_HANDLE,
     ) orelse return error.NoStdout;
 
-    var mode: u32 = 0;
+    var mode: win.DWORD = undefined;
     if (k32.GetConsoleMode(handle, &mode) == 0) {
         return error.GetConsoleModeFailed;
     }
 
-    if (k32.SetConsoleMode(handle, mode | 0x0004) == 0) {
+    const new_mode = mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    if (new_mode == mode) {
+        return;
+    }
+
+    if (k32.SetConsoleMode(handle, new_mode) == 0) {
         return error.SetConsoleModeFailed;
     }
 }

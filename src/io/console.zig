@@ -31,23 +31,23 @@ pub const WinSize = struct {
     rows: usize,
 };
 
-pub fn enableRawMode() !void {
+pub fn enable_raw_mode() !void {
     if (builtin.os.tag == .windows) {
-        return try enableRawModeWindows();
+        return try enable_raw_mode_windows();
     }
 
-    try enableRawModePosix();
+    try enable_raw_mode_posix();
 }
 
-pub fn disableRawMode() void {
+pub fn disable_raw_mode() void {
     if (builtin.os.tag == .windows) {
-        return disableRawModeWindows();
+        return disable_raw_mode_windows();
     }
 
-    disableRawModePosix();
+    disable_raw_mode_posix();
 }
 
-fn enableRawModePosix() !void {
+fn enable_raw_mode_posix() !void {
     const fd: std.posix.fd_t = std.posix.STDIN_FILENO;
 
     var tio = try std.posix.tcgetattr(fd);
@@ -62,7 +62,7 @@ fn enableRawModePosix() !void {
     try std.posix.tcsetattr(fd, .FLUSH, tio);
 }
 
-fn disableRawModePosix() void {
+fn disable_raw_mode_posix() void {
     if (original_termios) |tio| {
         _ = std.posix.tcsetattr(
             std.posix.STDIN_FILENO,
@@ -72,7 +72,7 @@ fn disableRawModePosix() void {
     }
 }
 
-fn enableRawModeWindows() !void {
+fn enable_raw_mode_windows() !void {
     const h = k32.GetStdHandle(win.STD_INPUT_HANDLE);
 
     if (k32.GetConsoleMode(h.?, &original_mode) == 0) {
@@ -90,12 +90,12 @@ fn enableRawModeWindows() !void {
     }
 }
 
-fn disableRawModeWindows() void {
+fn disable_raw_mode_windows() void {
     const h = k32.GetStdHandle(win.STD_INPUT_HANDLE);
     _ = k32.SetConsoleMode(h.?, original_mode);
 }
 
-pub fn enableANSI() !void {
+pub fn enable_ansi() !void {
     if (builtin.os.tag == .windows) {
         const oHandle = k32.GetStdHandle(win.STD_OUTPUT_HANDLE);
         if (oHandle == null) {
@@ -112,25 +112,25 @@ pub fn enableANSI() !void {
     }
 }
 
-pub fn enableUTF8() !void {
+pub fn enable_utf8() !void {
     if (builtin.os.tag == .windows) {
         _ = k32.SetConsoleOutputCP(65001);
     }
 }
 
-pub fn winSize() !WinSize {
+pub fn winsize() !WinSize {
     if (comptime builtin.os.tag == .windows) {
-        return windowsWinSize();
+        return windows_winsize();
     }
 
     if (comptime builtin.os.tag == .linux) {
-        return linuxWinSize();
+        return linux_winsize();
     }
 
     return WinSize{ .cols = 0, .rows = 0 };
 }
 
-fn linuxWinSize() !WinSize {
+fn linux_winsize() !WinSize {
     var ws: std.posix.winsize = undefined;
 
     const err = std.os.linux.ioctl(
@@ -149,7 +149,7 @@ fn linuxWinSize() !WinSize {
     return WinSize{ .cols = cols, .rows = rows };
 }
 
-fn windowsWinSize() !WinSize {
+fn windows_winsize() !WinSize {
     var info: win.CONSOLE_SCREEN_BUFFER_INFO = undefined;
 
     const hConsole = k32.GetStdHandle(win.STD_OUTPUT_HANDLE) orelse return error.NoStdout;

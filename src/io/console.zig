@@ -179,20 +179,20 @@ fn windows_winsize() !WinSize {
         return error.WinAPI;
     }
 
-    const rows: usize = @intCast(
-        info.srWindow.Bottom - info.srWindow.Top + 1,
-    );
+    const rows: i32 =
+        @as(i32, info.srWindow.Bottom) -
+        @as(i32, info.srWindow.Top) + 1;
 
-    const cols: usize = @intCast(
-        info.srWindow.Right - info.srWindow.Left + 1,
-    );
+    const cols: i32 =
+        @as(i32, info.srWindow.Right) -
+        @as(i32, info.srWindow.Left) + 1;
 
-    if (rows == 0 or cols == 0) {
+    if (rows <= 0 or cols <= 0) {
         return error.InvalidConsoleSize;
     }
 
-    return WinSize{
-        .cols = cols,
-        .rows = rows,
+    return .{
+        .cols = @intCast(cols),
+        .rows = @intCast(rows),
     };
 }

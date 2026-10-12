@@ -25,3 +25,60 @@ pub const Printer = struct {
         _ = self.arena.reset(.free_all);
     }
 };
+
+test "format returns a formatted string" {
+    var arena = std.heap.ArenaAllocator.init(
+        std.testing.allocator,
+    );
+
+    defer arena.deinit();
+
+    var printer = Printer{
+        .arena = &arena,
+        .out = undefined,
+    };
+
+    const result = try printer.format("Hello, {s}!", .{"world"});
+    try std.testing.expectEqualStrings("Hello, world!", result);
+}
+
+test "format supports multiple argument types" {
+    var arena = std.heap.ArenaAllocator.init(
+        std.testing.allocator,
+    );
+
+    defer arena.deinit();
+
+    var printer = Printer{
+        .arena = &arena,
+        .out = undefined,
+    };
+
+    const result = try printer.format(
+        "{s} {d} {s}",
+        .{ "Count:", 42, "items" },
+    );
+
+    try std.testing.expectEqualStrings("Count: 42 items", result);
+}
+
+test "reset allows subsequent formatting" {
+    var arena = std.heap.ArenaAllocator.init(
+        std.testing.allocator,
+    );
+
+    defer arena.deinit();
+
+    var printer = Printer{
+        .arena = &arena,
+        .out = undefined,
+    };
+
+    const first = try printer.format("First: {d}", .{1});
+    try std.testing.expectEqualStrings("First: 1", first);
+
+    printer.reset();
+
+    const second = try printer.format("Second: {d}", .{2});
+    try std.testing.expectEqualStrings("Second: 2", second);
+}

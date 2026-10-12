@@ -50,18 +50,25 @@ pub fn disable_raw_mode() void {
 }
 
 fn enable_raw_mode_posix() !void {
+    if (original_termios != null) {
+        return;
+    }
+
     const fd: std.posix.fd_t = std.posix.STDIN_FILENO;
+    const original = try std.posix.tcgetattr(fd);
 
-    var tio = try std.posix.tcgetattr(fd);
-    original_termios = tio;
+    var raw = original;
 
-    tio.lflag.ICANON = false;
-    tio.lflag.ECHO = false;
+    raw.lflag.ICANON = false;
+    raw.lflag.ECHO = false;
+    raw.lflag.ISIG = false;
 
-    tio.cc[@intFromEnum(std.posix.V.MIN)] = 0;
-    tio.cc[@intFromEnum(std.posix.V.TIME)] = 1;
+    raw.cc[@intFromEnum(std.posix.V.MIN)] = 0;
+    raw.cc[@intFromEnum(std.posix.V.TIME)] = 1;
 
-    try std.posix.tcsetattr(fd, .FLUSH, tio);
+    try std.posix.tcsetattr(fd, .FLUSH, raw);
+
+    original_termios = original;
 }
 
 fn disable_raw_mode_posix() void {
@@ -70,7 +77,9 @@ fn disable_raw_mode_posix() void {
             std.posix.STDIN_FILENO,
             .FLUSH,
             tio,
-        ) catch {};
+        ) catch return;
+
+        original_termios = null;
     }
 }
 

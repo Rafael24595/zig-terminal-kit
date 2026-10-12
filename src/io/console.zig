@@ -73,9 +73,11 @@ fn disable_raw_mode_posix() void {
 }
 
 fn enable_raw_mode_windows() !void {
-    const h = k32.GetStdHandle(win.STD_INPUT_HANDLE);
+    const h = k32.GetStdHandle(
+        win.STD_INPUT_HANDLE,
+    ) orelse return error.NoStdInput;
 
-    if (k32.GetConsoleMode(h.?, &original_mode) == 0) {
+    if (k32.GetConsoleMode(h, &original_mode) == 0) {
         return error.ConsoleMode;
     }
 
@@ -85,36 +87,45 @@ fn enable_raw_mode_windows() !void {
     mode &= ~ENABLE_ECHO_INPUT;
     mode &= ~ENABLE_PROCESSED_INPUT;
 
-    if (k32.SetConsoleMode(h.?, mode) == 0) {
+    if (k32.SetConsoleMode(h, mode) == 0) {
         return error.ConsoleMode;
     }
 }
 
 fn disable_raw_mode_windows() void {
-    const h = k32.GetStdHandle(win.STD_INPUT_HANDLE);
-    _ = k32.SetConsoleMode(h.?, original_mode);
+    const h = k32.GetStdHandle(
+        win.STD_INPUT_HANDLE,
+    ) orelse return;
+
+    _ = k32.SetConsoleMode(h, original_mode);
 }
 
 pub fn enable_ansi() !void {
-    if (builtin.os.tag == .windows) {
-        const oHandle = k32.GetStdHandle(win.STD_OUTPUT_HANDLE);
-        if (oHandle == null) {
-            return;
-        }
+    if (builtin.os.tag != .windows) {
+        return;
+    }
 
-        const handle = oHandle.?;
-        var mode: u32 = 0;
-        if (k32.GetConsoleMode(handle, &mode) == 0) {
-            return;
-        }
+    const handle = k32.GetStdHandle(
+        win.STD_OUTPUT_HANDLE,
+    ) orelse return error.NoStdout;
 
-        _ = k32.SetConsoleMode(handle, mode | 0x0004);
+    var mode: u32 = 0;
+    if (k32.GetConsoleMode(handle, &mode) == 0) {
+        return error.GetConsoleModeFailed;
+    }
+
+    if (k32.SetConsoleMode(handle, mode | 0x0004) == 0) {
+        return error.SetConsoleModeFailed;
     }
 }
 
 pub fn enable_utf8() !void {
-    if (builtin.os.tag == .windows) {
-        _ = k32.SetConsoleOutputCP(65001);
+    if (builtin.os.tag != .windows) {
+        return;
+    }
+
+    if (k32.SetConsoleOutputCP(65001) == 0) {
+        return error.SetConsoleOutputCPFailed;
     }
 }
 
@@ -127,7 +138,7 @@ pub fn winsize() !WinSize {
         return linux_winsize();
     }
 
-    return WinSize{ .cols = 0, .rows = 0 };
+    return error.InvalidConsoleSize;
 }
 
 fn linux_winsize() !WinSize {
@@ -139,26 +150,49 @@ fn linux_winsize() !WinSize {
         @intFromPtr(&ws),
     );
 
-    if (err == -1) {
+    if (err < 0) {
         return error.IoctlFailed;
     }
 
     const cols: usize = @intCast(ws.col);
     const rows: usize = @intCast(ws.row);
 
-    return WinSize{ .cols = cols, .rows = rows };
+    if (rows == 0 or cols == 0) {
+        return error.InvalidConsoleSize;
+    }
+
+    return WinSize{
+        .cols = cols,
+        .rows = rows,
+    };
 }
 
 fn windows_winsize() !WinSize {
     var info: win.CONSOLE_SCREEN_BUFFER_INFO = undefined;
 
-    const hConsole = k32.GetStdHandle(win.STD_OUTPUT_HANDLE) orelse return error.NoStdout;
+    const hConsole = k32.GetStdHandle(
+        win.STD_OUTPUT_HANDLE,
+    ) orelse return error.NoStdout;
 
     const ok = k32.GetConsoleScreenBufferInfo(hConsole, &info);
-    if (ok == 0) return error.WinAPI;
+    if (ok == 0) {
+        return error.WinAPI;
+    }
 
-    const rows: usize = @intCast(info.srWindow.Bottom - info.srWindow.Top + 1);
-    const cols: usize = @intCast(info.srWindow.Right - info.srWindow.Left + 1);
+    const rows: usize = @intCast(
+        info.srWindow.Bottom - info.srWindow.Top + 1,
+    );
 
-    return WinSize{ .cols = cols, .rows = rows };
+    const cols: usize = @intCast(
+        info.srWindow.Right - info.srWindow.Left + 1,
+    );
+
+    if (rows == 0 or cols == 0) {
+        return error.InvalidConsoleSize;
+    }
+
+    return WinSize{
+        .cols = cols,
+        .rows = rows,
+    };
 }

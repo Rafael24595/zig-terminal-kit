@@ -75,31 +75,41 @@ fn disable_raw_mode_posix() void {
 }
 
 fn enable_raw_mode_windows() !void {
-    const h = k32.GetStdHandle(
+    const handle = k32.GetStdHandle(
         win.STD_INPUT_HANDLE,
     ) orelse return error.NoStdInput;
 
-    if (k32.GetConsoleMode(h, &original_mode) == 0) {
+    var original: win.DWORD = undefined;
+    if (k32.GetConsoleMode(handle, &original) == 0) {
         return error.ConsoleMode;
     }
 
-    var mode = original_mode;
+    var mode = original;
 
     mode &= ~ENABLE_LINE_INPUT;
     mode &= ~ENABLE_ECHO_INPUT;
     mode &= ~ENABLE_PROCESSED_INPUT;
 
-    if (k32.SetConsoleMode(h, mode) == 0) {
+    if (k32.SetConsoleMode(handle, mode) == 0) {
         return error.ConsoleMode;
     }
+
+    original_mode = original;
+    windows_raw_mode_enabled = true;
 }
 
 fn disable_raw_mode_windows() void {
-    const h = k32.GetStdHandle(
+    if (!windows_raw_mode_enabled) {
+        return;
+    }
+
+    const handle = k32.GetStdHandle(
         win.STD_INPUT_HANDLE,
     ) orelse return;
 
-    _ = k32.SetConsoleMode(h, original_mode);
+    if (k32.SetConsoleMode(handle, original_mode) != 0) {
+        windows_raw_mode_enabled = false;
+    }
 }
 
 pub fn enable_ansi() !void {

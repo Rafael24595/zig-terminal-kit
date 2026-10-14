@@ -21,18 +21,22 @@ A lightweight utility library for terminal applications written in **Zig 0.15.1*
 
 ## Installation
 
-Add the dependency to your project's `build.zig.zon`. Replace the placeholder URL and hash with those for the version you want to use.
+### Add the dependency
 
-```zig
-.dependencies = .{
-    .terminal_kit = .{
-        .url = "REPOSITORY_OR_PACKAGE_URL",
-        .hash = "PACKAGE_HASH",
-    },
-},
+Choose the version you want to install and replace `0.4.0` in the URL below with the desired release version.
+
+Run the following command from your project directory:
+
+```bash
+zig fetch --save=terminal_kit https://github.com/Rafael24595/zig-terminal-kit/releases/download/0.4.0/zig_terminal_kit-0.4.0.tar.gz
 ```
 
-In `build.zig`, import the dependency module:
+This downloads the selected release and adds the dependency, including its content hash, to your `build.zig.zon`.
+
+
+### Import the module
+
+In your `build.zig`, add the dependency module to your executable:
 
 ```zig
 const terminal_kit_dep = b.dependency("terminal_kit", .{});
@@ -49,7 +53,10 @@ Then import the library in your Zig source files:
 const terminal_kit = @import("terminal_kit");
 ```
 
-If you use POSIX functions that require libc, enable libc linking for the consuming module when necessary for your target.
+You can now access the library's public modules through `terminal_kit`.
+
+**Note:** If you use POSIX functionality that requires libc, enable libc linking for the consuming module when necessary for your target platform.
+
 
 ## Public modules
 

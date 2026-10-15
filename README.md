@@ -73,6 +73,7 @@ The root module exposes the following modules:
 | `console` | Terminal control and dimension detection. |
 | `printer` | Text output and formatting. |
 | `clock` | System and monotonic clocks for measuring timestamps and elapsed time. |
+| `frame` | Frame counting and periodic frame-rate calculation (FPS). |
 
 Refer to the source code for the exact public API and function signatures.
 
@@ -163,6 +164,29 @@ const timestamp_ms = clock.now();
 Both implementations return timestamps in milliseconds, but their reference points differ. System-clock timestamps represent Unix time and can change when the system clock is adjusted. Monotonic timestamps are relative to the timer's start and are intended for measuring elapsed time.
 
 Keep the `MonotonicClock` instance alive and at a stable memory address while using a `Clock` obtained from `clock()`, because the returned interface stores a pointer to that instance.
+
+### Measuring frame rate
+
+The `Counter` type tracks rendered frames and periodically calculates the frame rate in frames per second (FPS).
+
+```zig
+const terminal_kit = @import("terminal_kit");
+
+var counter = terminal_kit.frame.Counter.init();
+
+// Call once for each rendered frame.
+counter.frame_increment();
+
+// Retrieve the latest frame-rate estimate.
+const fps = counter.get_frame_rate(1000);
+```
+
+The `interval` argument specifies the minimum elapsed time, in milliseconds, before the frame rate is recalculated. The returned value is always expressed in frames per second, regardless of the interval.
+
+The first call initializes the timestamp and returns the existing estimate without recalculating it. Until the interval elapses, subsequent calls return the most recently calculated value.
+
+The counter uses the system clock by default and supports injecting a different `Clock` implementation when needed.
+
 
 ### Formatting values
 

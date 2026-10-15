@@ -6,6 +6,7 @@ test {
 
     std.testing.refAllDeclsRecursive(@import("commons/allocator.zig"));
     std.testing.refAllDeclsRecursive(@import("commons/clock.zig"));
+    std.testing.refAllDeclsRecursive(@import("commons/frame.zig"));
     std.testing.refAllDeclsRecursive(@import("commons/mini_lcg.zig"));
     std.testing.refAllDeclsRecursive(@import("commons/utils.zig"));
 
@@ -21,6 +22,7 @@ test {
 
     _ = @import("commons/allocator.zig");
     _ = @import("commons/clock.zig");
+    _ = @import("commons/frame.zig");
     _ = @import("commons/mini_lcg.zig");
     _ = @import("commons/utils.zig");
 

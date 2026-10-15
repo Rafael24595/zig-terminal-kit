@@ -72,6 +72,7 @@ The root module exposes the following modules:
 | `configuration` | Command-line flags and argument parsing. |
 | `console` | Terminal control and dimension detection. |
 | `printer` | Text output and formatting. |
+| `clock` | System and monotonic clocks for measuring timestamps and elapsed time. |
 
 Refer to the source code for the exact public API and function signatures.
 
@@ -132,6 +133,36 @@ pub fn main() !void {
 The conversion uses fixed time units: a 365-day year, a 24-hour day, and their corresponding smaller units.
 
 The optional `limit` parameter stops the breakdown before the specified unit, making the limit exclusive.
+
+### Working with clocks
+
+The `clock` module provides a common interface for retrieving timestamps in milliseconds through two clock implementations:
+
+- `system_clock` returns Unix timestamps using the system wall clock.
+- `MonotonicClock` returns elapsed time since its timer was started, making it suitable for measuring durations and frame intervals.
+
+**System clock**
+
+```zig
+const terminal_kit = @import("terminal_kit");
+
+const timestamp_ms = terminal_kit.clock.system_clock.now();
+```
+
+**Monotonic clock**
+
+```zig
+const terminal_kit = @import("terminal_kit");
+
+var monotonic = try terminal_kit.clock.MonotonicClock.init();
+const clock = monotonic.clock();
+
+const timestamp_ms = clock.now();
+```
+
+Both implementations return timestamps in milliseconds, but their reference points differ. System-clock timestamps represent Unix time and can change when the system clock is adjusted. Monotonic timestamps are relative to the timer's start and are intended for measuring elapsed time.
+
+Keep the `MonotonicClock` instance alive and at a stable memory address while using a `Clock` obtained from `clock()`, because the returned interface stores a pointer to that instance.
 
 ### Formatting values
 

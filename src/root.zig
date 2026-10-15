@@ -2,6 +2,7 @@ pub const runtime_state = @import("app/runtime_state.zig");
 pub const signals = @import("app/signals.zig");
 
 pub const allocator = @import("commons/allocator.zig");
+pub const clock = @import("commons/clock.zig");
 pub const mini_lcg = @import("commons/mini_lcg.zig");
 pub const utils = @import("commons/utils.zig");
 

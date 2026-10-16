@@ -75,6 +75,30 @@ pub const MiniLCG = struct {
         const rnd_value: f32 = @floatFromInt(rnd_bits);
         return rnd_value / FLOAT_RANDOM_RANGE;
     }
+
+    /// Shuffles the elements of the provided array in place using
+    /// the Fisher-Yates algorithm.
+    ///
+    /// The result is deterministic for a given initial generator state.
+    /// The distribution of permutations depends on the quality of the
+    /// generator and its bounded integer mapping.
+    pub fn shuffle(self: *MiniLCG, comptime T: type, data: []T) void {
+        if (data.len < 2) {
+            return;
+        }
+
+        var i: usize = data.len - 1;
+        while (i > 0) : (i -= 1) {
+            const j = self.rand_in_range(0, i);
+
+            const a = &data[i];
+            const b = &data[j];
+
+            const tmp = a.*;
+            a.* = b.*;
+            b.* = tmp;
+        }
+    }
 };
 
 test "random number in range with specific seed" {
@@ -152,4 +176,42 @@ test "float is deterministic for identical seeds" {
     for (0..100) |_| {
         try std.testing.expectEqual(a.float(), b.float());
     }
+}
+
+test "shuffle preserves all elements" {
+    var rng = MiniLCG.init(1234);
+    const original = [_]u8{ 1, 2, 3, 4, 5 };
+    var values = original;
+
+    rng.shuffle(u8, &values);
+
+    var sorted = values;
+    std.mem.sort(u8, &sorted, {}, std.sort.asc(u8));
+
+    try std.testing.expectEqualSlices(u8, &original, &sorted);
+}
+
+test "shuffle is deterministic for identical seeds" {
+    var a = MiniLCG.init(42);
+    var b = MiniLCG.init(42);
+
+    var values_a = [_]u8{ 1, 2, 3, 4, 5, 6 };
+    var values_b = values_a;
+
+    a.shuffle(u8, &values_a);
+    b.shuffle(u8, &values_b);
+
+    try std.testing.expectEqualSlices(u8, &values_a, &values_b);
+}
+
+test "shuffle handles empty and single-element slices" {
+    var rng = MiniLCG.init(42);
+
+    var empty: [0]u8 = .{};
+    var single = [_]u8{7};
+
+    rng.shuffle(u8, &empty);
+    rng.shuffle(u8, &single);
+
+    try std.testing.expectEqual(@as(u8, 7), single[0]);
 }

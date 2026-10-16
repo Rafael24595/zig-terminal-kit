@@ -67,13 +67,15 @@ The root module exposes the following modules:
 | `runtime_state` | Application runtime state utilities. |
 | `signals` | Signal-related utilities and pipe-based communication. |
 | `allocator` | Allocation tracking utilities. |
-| `mini_lcg` | Deterministic pseudo-random number generator. |
-| `utils` | Time conversion and value formatting. |
-| `configuration` | Command-line flags and argument parsing. |
-| `console` | Terminal control and dimension detection. |
-| `printer` | Text output and formatting. |
 | `clock` | System and monotonic clocks for measuring timestamps and elapsed time. |
 | `frame` | Frame counting and periodic frame-rate calculation (FPS). |
+| `mini_lcg` | Deterministic pseudo-random number generator. |
+| `time` | Time conversion utilities. |
+| `configuration` | Command-line flags and argument parsing. |
+| `console` | Terminal control and dimension detection. |
+| `formatter` | Value formatting utilities. |
+| `printer` | Text output and formatting. |
+| `color` | Named colors and their 8-bit RGB representations. |
 
 Refer to the source code for the exact public API and function signatures.
 
@@ -120,7 +122,7 @@ pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
 
-    const duration = try terminal_kit.utils.millisecondsToTime(
+    const duration = try terminal_kit.time.milliseconds_to_time(
         arena.allocator(),
         3_726_000,
         null,
@@ -196,7 +198,7 @@ The counter uses the system clock by default and supports injecting a different 
 const terminal_kit = @import("terminal_kit");
 
 // Assumes `printer` has already been initialized.
-const value = terminal_kit.utils.TypeFormatter{
+const value = terminal_kit.formatter.TypeFormatter{
     .float = 3.14159,
 };
 
@@ -206,18 +208,47 @@ const formatted = try value.format(&printer);
 
 Floating-point values are formatted to two decimal places.
 
+### Working with colors
+
+The `style.colors` module provides a set of named colors and their RGB representations.
+
+```zig
+const terminal_kit = @import("terminal_kit");
+
+const rgb = terminal_kit.style.colors.rgb_of(.coral);
+
+// rgb[0]: red component
+// rgb[1]: green component
+// rgb[2]: blue component
+```
+
+Each RGB component is an 8-bit unsigned integer in the range `0`–`255`. The module includes standard named colors as well as neon variants.
+
+The module provides color data only; converting RGB values into terminal escape sequences is handled separately.
+
 ### Generating deterministic pseudo-random numbers
 
 ```zig
 const terminal_kit = @import("terminal_kit");
 
 var rng = terminal_kit.mini_lcg.MiniLCG.init(1234);
+
+// Generate an integer in the inclusive range [0, 10].
 const value = rng.rand_in_range(0, 10);
+
+// Generate an f32 in the range [0.0, 1.0).
+const fraction = rng.float();
+
+// Shuffle a slice in place.
+var values = [_]u8{ 1, 2, 3, 4, 5 };
+rng.shuffle(u8, &values);
 ```
 
-The range is inclusive. Using the same seed produces the same sequence, making the generator useful for reproducible results.
+The generator is deterministic: using the same seed and making the same sequence of calls produces the same results.
 
-**This generator is not cryptographically secure.** Its modulo-based range mapping can also introduce distribution bias.
+`rand_in_range()` uses an inclusive range. `float()` returns a value in the range `[0.0, 1.0)`. `shuffle()` rearranges the elements of a slice in place using the Fisher–Yates algorithm.
+
+**This generator is not cryptographically secure.** Its modulo-based range mapping can introduce distribution bias, which may also affect the distribution of shuffled permutations.
 
 ### Querying terminal dimensions
 

@@ -31,25 +31,22 @@ pub const MiniLCG = struct {
     ///
     /// The generated value is reduced using modulo, which can introduce
     /// a small distribution bias for some ranges.
-    pub fn rand_in_range(self: *@This(), min: u8, max: u8) u8 {
+    pub fn rand_in_range(self: *@This(), min: usize, max: usize) usize {
         if (comptime std.debug.runtime_safety) {
             std.debug.assert(min <= max);
         }
 
-        var rnd: u64 = self.next();
+        const rnd: usize = @truncate(self.next());
 
-        rnd = ((rnd >> 16) ^ (rnd >> 8)) & 0xFFFF;
+        const lower: usize = @min(min, max);
+        const upper: usize = @max(min, max);
 
-        const lower: u64 = @intCast(
-            @min(min, max),
-        );
+        if (lower == 0 and upper == MAX_USIZE) {
+            return rnd;
+        }
 
-        const upper: u64 = @intCast(
-            @max(min, max),
-        );
-
-        const range: u64 = upper - lower + 1;
-        const value: u64 = rnd % range;
+        const range = upper - lower + 1;
+        const value = rnd % range;
 
         return @intCast(lower + value);
     }
@@ -62,10 +59,10 @@ test "random number in range with specific seed" {
     try std.testing.expectEqual(1, num);
 
     num = lcg.rand_in_range(0, 10);
-    try std.testing.expectEqual(6, num);
+    try std.testing.expectEqual(7, num);
 
     num = lcg.rand_in_range(0, 10);
-    try std.testing.expectEqual(9, num);
+    try std.testing.expectEqual(3, num);
 }
 
 test "lcg determinism" {

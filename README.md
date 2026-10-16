@@ -67,14 +67,14 @@ The root module exposes the following modules:
 | `runtime_state` | Application runtime state utilities. |
 | `signals` | Signal-related utilities and pipe-based communication. |
 | `allocator` | Allocation tracking utilities. |
+| `clock` | System and monotonic clocks for measuring timestamps and elapsed time. |
+| `frame` | Frame counting and periodic frame-rate calculation (FPS). |
 | `mini_lcg` | Deterministic pseudo-random number generator. |
 | `time` | Time conversion utilities. |
 | `configuration` | Command-line flags and argument parsing. |
 | `console` | Terminal control and dimension detection. |
 | `formatter` | Value formatting utilities. |
 | `printer` | Text output and formatting. |
-| `clock` | System and monotonic clocks for measuring timestamps and elapsed time. |
-| `frame` | Frame counting and periodic frame-rate calculation (FPS). |
 
 Refer to the source code for the exact public API and function signatures.
 

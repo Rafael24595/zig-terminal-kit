@@ -232,12 +232,23 @@ The module provides color data only; converting RGB values into terminal escape 
 const terminal_kit = @import("terminal_kit");
 
 var rng = terminal_kit.mini_lcg.MiniLCG.init(1234);
+
+// Generate an integer in the inclusive range [0, 10].
 const value = rng.rand_in_range(0, 10);
+
+// Generate an f32 in the range [0.0, 1.0).
+const fraction = rng.float();
+
+// Shuffle a slice in place.
+var values = [_]u8{ 1, 2, 3, 4, 5 };
+rng.shuffle(u8, &values);
 ```
 
-The range is inclusive. Using the same seed produces the same sequence, making the generator useful for reproducible results.
+The generator is deterministic: using the same seed and making the same sequence of calls produces the same results.
 
-**This generator is not cryptographically secure.** Its modulo-based range mapping can also introduce distribution bias.
+`rand_in_range()` uses an inclusive range. `float()` returns a value in the range `[0.0, 1.0)`. `shuffle()` rearranges the elements of a slice in place using the Fisher–Yates algorithm.
+
+**This generator is not cryptographically secure.** Its modulo-based range mapping can introduce distribution bias, which may also affect the distribution of shuffled permutations.
 
 ### Querying terminal dimensions
 

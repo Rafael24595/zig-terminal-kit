@@ -68,9 +68,10 @@ The root module exposes the following modules:
 | `signals` | Signal-related utilities and pipe-based communication. |
 | `allocator` | Allocation tracking utilities. |
 | `mini_lcg` | Deterministic pseudo-random number generator. |
-| `utils` | Time conversion and value formatting. |
+| `time` | Time conversion utilities. |
 | `configuration` | Command-line flags and argument parsing. |
 | `console` | Terminal control and dimension detection. |
+| `formatter` | Value formatting utilities. |
 | `printer` | Text output and formatting. |
 | `clock` | System and monotonic clocks for measuring timestamps and elapsed time. |
 | `frame` | Frame counting and periodic frame-rate calculation (FPS). |
@@ -120,7 +121,7 @@ pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
 
-    const duration = try terminal_kit.utils.millisecondsToTime(
+    const duration = try terminal_kit.time.milliseconds_to_time(
         arena.allocator(),
         3_726_000,
         null,
@@ -196,7 +197,7 @@ The counter uses the system clock by default and supports injecting a different 
 const terminal_kit = @import("terminal_kit");
 
 // Assumes `printer` has already been initialized.
-const value = terminal_kit.utils.TypeFormatter{
+const value = terminal_kit.formatter.TypeFormatter{
     .float = 3.14159,
 };
 

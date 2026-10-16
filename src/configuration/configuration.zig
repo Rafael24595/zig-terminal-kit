@@ -1,7 +1,7 @@
 const std = @import("std");
 
 const Printer = @import("../io/printer.zig").Printer;
-const TypeFormatter = @import("../commons/utils.zig").TypeFormatter;
+const TypeFormatter = @import("../io/formatter.zig").TypeFormatter;
 
 const ParseError = error{
     InvalidValue,

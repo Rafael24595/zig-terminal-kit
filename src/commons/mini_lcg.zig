@@ -114,6 +114,25 @@ test "random number in range with specific seed" {
     try std.testing.expectEqual(3, num);
 }
 
+test "full usize range does not overflow" {
+    var rng = MiniLCG.init(1234);
+
+    const value = rng.rand_in_range(0, MAX_USIZE);
+
+    try std.testing.expect(value <= MAX_USIZE);
+}
+
+test "supports ranges larger than u8" {
+    var rng = MiniLCG.init(1234);
+    const min: usize = 1_000;
+    const max: usize = 100_000;
+
+    for (0..100) |_| {
+        const value = rng.rand_in_range(min, max);
+        try std.testing.expect(value >= min and value <= max);
+    }
+}
+
 test "lcg determinism" {
     var a = MiniLCG.init(42);
     var b = MiniLCG.init(42);

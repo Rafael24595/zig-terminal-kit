@@ -15,6 +15,8 @@ test {
     std.testing.refAllDeclsRecursive(@import("io/console.zig"));
     std.testing.refAllDeclsRecursive(@import("io/formatter.zig"));
     std.testing.refAllDeclsRecursive(@import("io/printer.zig"));
+
+    std.testing.refAllDeclsRecursive(@import("style/color.zig"));
 }
 
 test {
@@ -32,4 +34,6 @@ test {
     _ = @import("io/console.zig");
     _ = @import("io/formatter.zig");
     _ = @import("io/printer.zig");
+
+    _ = @import("style/color.zig");
 }

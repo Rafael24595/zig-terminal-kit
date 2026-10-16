@@ -12,3 +12,5 @@ pub const configuration = @import("configuration/configuration.zig");
 pub const console = @import("io/console.zig");
 pub const formatter = @import("io/formatter.zig");
 pub const printer = @import("io/printer.zig");
+
+pub const color = @import("style/color.zig");

@@ -75,6 +75,7 @@ The root module exposes the following modules:
 | `console` | Terminal control and dimension detection. |
 | `formatter` | Value formatting utilities. |
 | `printer` | Text output and formatting. |
+| `color` | Named colors and their 8-bit RGB representations. |
 
 Refer to the source code for the exact public API and function signatures.
 
@@ -206,6 +207,24 @@ const formatted = try value.format(&printer);
 ```
 
 Floating-point values are formatted to two decimal places.
+
+### Working with colors
+
+The `style.colors` module provides a set of named colors and their RGB representations.
+
+```zig
+const terminal_kit = @import("terminal_kit");
+
+const rgb = terminal_kit.style.colors.rgb_of(.coral);
+
+// rgb[0]: red component
+// rgb[1]: green component
+// rgb[2]: blue component
+```
+
+Each RGB component is an 8-bit unsigned integer in the range `0`–`255`. The module includes standard named colors as well as neon variants.
+
+The module provides color data only; converting RGB values into terminal escape sequences is handled separately.
 
 ### Generating deterministic pseudo-random numbers
 

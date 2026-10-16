@@ -1,5 +1,19 @@
 const std = @import("std");
 
+/// Maximum value of `usize` for the current architecture.
+const MAX_USIZE = std.math.maxInt(usize);
+
+/// Number of random bits used to generate an f32 fraction.
+const FLOAT_RANDOM_BITS = 24;
+
+/// Number of bits to shift the random value to extract the fraction.
+const FLOAT_RANDOM_SHIFT = 64 - FLOAT_RANDOM_BITS;
+
+/// Number of distinct fractions representable by those bits (2^24).
+const FLOAT_RANDOM_RANGE: f32 = @floatFromInt(
+    @as(u32, 1) << FLOAT_RANDOM_BITS,
+);
+
 /// A small, deterministic pseudo-random number generator based on a
 /// Linear Congruential Generator (LCG).
 ///
@@ -49,6 +63,17 @@ pub const MiniLCG = struct {
         const value = rnd % range;
 
         return @intCast(lower + value);
+    }
+
+    /// Returns a pseudo-random `f32` in the range [0.0, 1.0).
+    ///
+    /// Uses the upper 24 bits of the generator output to produce
+    /// 2^24 possible values, spaced 2^-24 apart.
+    /// The result is deterministic and not cryptographically secure.
+    pub fn float(self: *@This()) f32 {
+        const rnd_bits = self.next() >> FLOAT_RANDOM_SHIFT;
+        const rnd_value: f32 = @floatFromInt(rnd_bits);
+        return rnd_value / FLOAT_RANDOM_RANGE;
     }
 };
 
@@ -107,4 +132,24 @@ test "handles seed overflow" {
     var lcg = MiniLCG.init(std.math.maxInt(u64));
     const v = lcg.rand_in_range(0, 255);
     try std.testing.expect(v <= 255);
+}
+
+test "float returns values in the expected range" {
+    var rng = MiniLCG.init(1234);
+
+    for (0..1000) |_| {
+        const value = rng.float();
+
+        try std.testing.expect(value >= 0.0);
+        try std.testing.expect(value < 1.0);
+    }
+}
+
+test "float is deterministic for identical seeds" {
+    var a = MiniLCG.init(42);
+    var b = MiniLCG.init(42);
+
+    for (0..100) |_| {
+        try std.testing.expectEqual(a.float(), b.float());
+    }
 }

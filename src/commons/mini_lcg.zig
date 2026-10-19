@@ -3,6 +3,12 @@ const std = @import("std");
 /// Maximum value of `usize` for the current architecture.
 const MAX_USIZE = std.math.maxInt(usize);
 
+/// Multiplier used by the linear congruential generator.
+const LCG_MULTIPLIER: u64 = 1_664_525;
+
+/// Increment used by the linear congruential generator.
+const LCG_INCREMENT: u64 = 1_013_904_223;
+
 /// Number of random bits used to generate an f32 fraction.
 const FLOAT_RANDOM_BITS = 24;
 
@@ -31,8 +37,8 @@ pub const MiniLCG = struct {
     }
 
     fn next(self: *@This()) u64 {
-        const mul = @mulWithOverflow(self.seed, 1664525);
-        const add = @addWithOverflow(mul[0], 1013904223);
+        const mul = @mulWithOverflow(self.seed, LCG_MULTIPLIER);
+        const add = @addWithOverflow(mul[0], LCG_INCREMENT);
         self.seed = add[0];
         return self.seed;
     }

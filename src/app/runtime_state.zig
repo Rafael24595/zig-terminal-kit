@@ -124,6 +124,22 @@ pub const RuntimeState = struct {
     }
 };
 
+/// Handles an interrupt signal by requesting the runtime to exit.
+pub fn on_interrupt(context: *anyopaque) void {
+    const state: *RuntimeState = @ptrCast(@alignCast(context));
+    state.request_exit();
+}
+
+/// Returns `true` if the runtime has been requested to exit.
+pub inline fn should_exit(state: *const RuntimeState) bool {
+    return state.exit.load(.acquire);
+}
+
+/// Returns `true` if the runtime has been requested to reload.
+pub inline fn should_reload(state: *const RuntimeState) bool {
+    return state.reload.load(.acquire);
+}
+
 test "initial state has no pending requests" {
     var state = RuntimeState{};
 

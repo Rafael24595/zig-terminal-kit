@@ -1,6 +1,6 @@
 .{
     .name = .zig_terminal_kit,
-    .version = "0.7.0",
+    .version = "0.8.0",
     .fingerprint = 0xd26bf0838e8ba131,
     .minimum_zig_version = "0.15.1",
     .dependencies = .{},

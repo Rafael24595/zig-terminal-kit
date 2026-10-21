@@ -46,6 +46,10 @@ pub const WinSize = struct {
     cols: usize,
     /// Number of visible rows.
     rows: usize,
+
+    pub fn eql(self: @This(), other: WinSize) bool {
+        return self.cols == other.cols and self.rows == other.rows;
+    }
 };
 
 /// Enables raw-style input mode for the current terminal.
@@ -262,4 +266,13 @@ fn windows_winsize() !WinSize {
         .cols = @intCast(cols),
         .rows = @intCast(rows),
     };
+}
+
+test "WinSize equality" {
+    const a = WinSize{ .cols = 80, .rows = 24 };
+    const b = WinSize{ .cols = 80, .rows = 24 };
+    const c = WinSize{ .cols = 100, .rows = 30 };
+
+    try std.testing.expect(a.eql(b));
+    try std.testing.expect(!a.eql(c));
 }

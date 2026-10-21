@@ -1,6 +1,10 @@
 const std = @import("std");
 
+const math = std.math;
+
 const testing = std.testing;
+
+const default_max_speed = 3000;
 
 /// Stores shared runtime state for a terminal application.
 ///
@@ -12,6 +16,8 @@ const testing = std.testing;
 pub const RuntimeState = struct {
     /// Protects the condition variable and notification state.
     mutex: std.Thread.Mutex = .{},
+
+    max_speed: u64 = default_max_speed,
 
     /// Timestamp, in milliseconds, at which the runtime effectively started.
     start_timestamp: std.atomic.Value(i64) = .init(0),
@@ -36,11 +42,39 @@ pub const RuntimeState = struct {
     /// Access must be synchronized using `mutex`.
     notification_pending: bool = false,
 
+    pub fn init(max_speed: u64) @This() {
+        return .{
+            .max_speed = max_speed,
+        };
+    }
+
     /// Updates the target frame interval and notifies waiting threads.
     ///
     /// `speed` is expressed in milliseconds.
     pub fn set_speed(self: *@This(), speed: u64) void {
         self.speed_ms.store(speed, .release);
+        self.notify();
+    }
+
+    /// Modifies the target frame interval by the specified amount and notifies waiting threads.
+    ///
+    /// `mod` is expressed in milliseconds. The resulting speed is clamped to the range [0, max_speed].
+    pub fn mod_speed(self: *@This(), mod: i64) void {
+        const speed = self.speed_ms.load(.acquire);
+
+        const next: u64 = if (mod >= 0) blk: {
+            const delta: u64 = @intCast(mod);
+            break :blk speed +| delta;
+        } else blk: {
+            const delta: u64 = @intCast(-@as(i128, mod));
+            break :blk speed -| delta;
+        };
+
+        self.speed_ms.store(
+            @min(next, self.max_speed),
+            .release,
+        );
+
         self.notify();
     }
 
@@ -157,6 +191,88 @@ test "set_speed updates the frame interval" {
 
     try testing.expectEqual(
         @as(u64, 100),
+        state.speed_ms.load(.monotonic),
+    );
+}
+
+test "mod_speed increases the frame interval" {
+    var state = RuntimeState{};
+
+    state.mod_speed(100);
+
+    try testing.expectEqual(
+        @as(u64, 100),
+        state.speed_ms.load(.monotonic),
+    );
+}
+
+test "mod_speed decreases the frame interval" {
+    var state = RuntimeState{};
+
+    state.set_speed(100);
+    state.mod_speed(-30);
+
+    try testing.expectEqual(
+        @as(u64, 70),
+        state.speed_ms.load(.monotonic),
+    );
+}
+
+test "mod_speed clamps the frame interval to zero" {
+    var state = RuntimeState{};
+
+    state.set_speed(10);
+    state.mod_speed(-20);
+
+    try testing.expectEqual(
+        @as(u64, 0),
+        state.speed_ms.load(.monotonic),
+    );
+}
+
+test "mod_speed clamps the frame interval to max_speed" {
+    var state = RuntimeState{};
+
+    state.set_speed(state.max_speed - 10);
+    state.mod_speed(20);
+
+    try testing.expectEqual(
+        state.max_speed,
+        state.speed_ms.load(.monotonic),
+    );
+}
+
+test "mod_speed handles zero adjustment" {
+    var state = RuntimeState{};
+
+    state.set_speed(100);
+    state.mod_speed(0);
+
+    try testing.expectEqual(
+        @as(u64, 100),
+        state.speed_ms.load(.monotonic),
+    );
+}
+
+test "mod_speed handles minimum adjustment" {
+    var state = RuntimeState{};
+
+    state.set_speed(100);
+    state.mod_speed(std.math.minInt(i64));
+
+    try testing.expectEqual(
+        @as(u64, 0),
+        state.speed_ms.load(.monotonic),
+    );
+}
+
+test "mod_speed handles maximum adjustment" {
+    var state = RuntimeState{};
+
+    state.mod_speed(std.math.maxInt(i64));
+
+    try testing.expectEqual(
+        state.max_speed,
         state.speed_ms.load(.monotonic),
     );
 }

@@ -12,6 +12,7 @@ A lightweight utility library for terminal applications written in **Zig 0.15.1*
 - **Memory tracking:** An allocator wrapper that tracks requested allocation sizes.
 - **General utilities:** Millisecond-to-time conversion and formatting of common value types.
 - **Pseudo-random numbers:** A lightweight, deterministic linear congruential generator (LCG).
+- **Color formatting:** Reusable formatters for ANSI 256-color, RGB, and unformatted terminal output, supporting both matrix-level color prefixes and individual cell formatting.
 
 ## Requirements
 
@@ -73,7 +74,7 @@ The root module exposes the following modules:
 | `time` | Time conversion utilities. |
 | `configuration` | Command-line flags and argument parsing. |
 | `console` | Terminal control and dimension detection. |
-| `formatter` | Value formatting utilities. |
+| `formatter` | Value formatting utilities and reusable ANSI/RGB color formatters for matrices and individual cells. |
 | `printer` | Text output and formatting. |
 | `color` | Named colors and their 8-bit RGB representations. |
 
@@ -207,6 +208,39 @@ const formatted = try value.format(&printer);
 ```
 
 Floating-point values are formatted to two decimal places.
+
+### Formatting terminal colors
+
+The `formatter` module provides `FormatterMatrixUnion` and `FormatterCellUnion` to support terminal color formatting at different levels.
+
+- `FormatterMatrixUnion` handles formatting applied to the matrix as a whole, including the color prefix and reset suffix.
+- `FormatterCellUnion` handles formatting applied to individual cells.
+
+Depending on the implementation, matrix-level formatting may be unnecessary even when individual cells require colors. For example, the following configuration leaves the matrix unformatted while allowing each cell to use ANSI 256-color or RGB formatting.
+
+```zig
+const kit_formatter = @import("terminal_kit").formatter;
+
+pub const FormatterCode = enum {
+    ansi,
+    rgb,
+};
+
+pub fn matrix_union_of(_: FormatterCode) kit_formatter.FormatterMatrixUnion {
+    return .{ .unfo = .{} };
+}
+
+pub fn cell_union_of(f: FormatterCode) kit_formatter.FormatterCellUnion {
+    return switch (f) {
+        .ansi => .{ .ansi = .{} },
+        .rgb => .{ .rgb = .{} },
+    };
+}
+```
+
+Both formatter types expose `fmt_bytes()` to report the byte length associated with their formatting strings. `FormatterMatrixUnion` also provides `prefix()`, `sufix()`, and `format_prefix()`, while `FormatterCellUnion` provides `format()`.
+
+The `.unfo` variant leaves text unformatted. The `.ansi` and `.rgb` variants apply their respective terminal color escape sequences.
 
 ### Working with colors
 

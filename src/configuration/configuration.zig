@@ -25,6 +25,71 @@ pub const Flag = struct {
     aux_desc: ?[]const u8 = null,
 };
 
+/// Represents the outcome of parsing command-line arguments.
+///
+/// - `run`: The configuration was successfully created.
+/// - `inf`: An informational request, such as help or version, was handled.
+/// - `err`: Argument parsing failed, and the associated message describes
+///   the error.
+///
+/// Error messages are allocated from the `Printer`'s arena and remain valid
+///   until the printer is reset.
+pub fn InitResult(comptime T: type) type {
+    return union(enum) {
+        run: T,
+        inf: void,
+        err: []u8,
+    };
+}
+
+/// Builds a configuration from the current process arguments.
+///
+/// Allocates the argument list using `allocator` and passes it, along with
+/// `printer`, to `initFn`. Returns the configuration when initialization
+/// succeeds.
+///
+/// For informational results, exits the process with status code `0`.
+/// For error results, prints the error message and exits with status code
+/// `1`. The printer is reset before either exit.
+///
+/// Propagates errors returned by argument allocation or `initFn`.
+///
+/// The `initFn` parameter must accept the allocator, printer, and allocated
+/// argument list, and return an `InitResult(T)` or an error.
+///
+/// Note: This function terminates the process for `.inf` and `.err` results.
+pub fn from_args(
+    comptime T: type,
+    allocator: std.mem.Allocator,
+    printer: *Printer,
+    comptime initFn: fn (
+        allocator: std.mem.Allocator,
+        printer: *Printer,
+        args: [][:0]u8,
+    ) anyerror!InitResult(T),
+) !T {
+    const args = try std.process.argsAlloc(allocator);
+
+    errdefer std.process.argsFree(allocator, args);
+    errdefer printer.reset();
+
+    const result = try initFn(allocator, printer, args);
+
+    const exit_code: u8 = switch (result) {
+        .run => |config| return config,
+        .inf => 0,
+        .err => |err| blk: {
+            try printer.print(err);
+            break :blk 1;
+        },
+    };
+
+    std.process.argsFree(allocator, args);
+    printer.reset();
+
+    std.process.exit(exit_code);
+}
+
 /// Formats a flag as a help-text row.
 ///
 /// Optional fields are rendered as empty strings when absent.

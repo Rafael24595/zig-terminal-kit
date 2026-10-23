@@ -113,6 +113,63 @@ pub fn main() !void {
 
 `print()` and `printf()` propagate write errors. `prints()` intentionally ignores them.
 
+### Parsing command-line arguments
+
+The `configuration` module provides `InitResult(T)` and `from_args()` to share command-line argument handling across applications while keeping each application's configuration parsing separate.
+
+Define an `init` function that parses the arguments and returns an `InitResult(Configuration)`. The result can represent a successfully parsed configuration, an informational request such as `--help` or `--version`, or an error message.
+
+```zig
+const std = @import("std");
+const terminal_kit = @import("terminal_kit");
+
+const kit_conf = terminal_kit.configuration;
+const Printer = terminal_kit.printer.Printer;
+
+const Configuration = struct {
+    debug: bool = false,
+
+    pub fn init(
+        allocator: std.mem.Allocator,
+        printer: *Printer,
+        args: [][:0]u8,
+    ) !kit_conf.InitResult(Configuration) {
+        _ = allocator;
+
+        for (args[1..]) |arg| {
+            if (std.mem.eql(u8, arg, "--debug")) {
+                return .{ .run = .{ .debug = true } };
+            }
+
+            return .{
+                .err = try printer.format("Unknown argument: {s}\n", .{arg}),
+            };
+        }
+
+        return .{ .run = .{} };
+    }
+};
+
+pub fn main() !void {
+    // Assumes allocator and printer have been initialized.
+    const config = try kit_conf.from_args(
+        Configuration,
+        allocator,
+        &printer,
+        Configuration.init,
+    );
+
+    // Continue using config.
+    _ = config;
+}
+```
+
+`from_args()` allocates the process arguments, invokes the supplied initialization function, and returns the configuration when parsing succeeds. For `.inf`, it exits with status code `0`; for `.err`, it prints the message and exits with status code `1`.
+
+Error messages returned in `.err` must remain valid until they are printed. When using `Printer.format()`, the message is backed by the printer's arena and becomes invalid after `printer.reset()`.
+
+Errors propagated by the initialization function are returned to the caller rather than converted into process exit codes.
+
 ### Converting milliseconds to a duration
 
 ```zig

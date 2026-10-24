@@ -12,6 +12,7 @@ A lightweight utility library for terminal applications written in **Zig 0.15.1*
 - **Memory tracking:** An allocator wrapper that tracks requested allocation sizes.
 - **General utilities:** Millisecond-to-time conversion and formatting of common value types.
 - **Pseudo-random numbers:** A lightweight, deterministic linear congruential generator (LCG).
+- **Color formatting:** Reusable formatters for ANSI 256-color, RGB, and unformatted terminal output, supporting both matrix-level color prefixes and individual cell formatting.
 
 ## Requirements
 
@@ -73,7 +74,7 @@ The root module exposes the following modules:
 | `time` | Time conversion utilities. |
 | `configuration` | Command-line flags and argument parsing. |
 | `console` | Terminal control and dimension detection. |
-| `formatter` | Value formatting utilities. |
+| `formatter` | Value formatting utilities and reusable ANSI/RGB color formatters for matrices and individual cells. |
 | `printer` | Text output and formatting. |
 | `color` | Named colors and their 8-bit RGB representations. |
 
@@ -111,6 +112,63 @@ pub fn main() !void {
 **Memory lifetime:** Strings returned by `format()` are allocated in the printer's arena. Calling `reset()` invalidates previously formatted strings, so do not use them afterward.
 
 `print()` and `printf()` propagate write errors. `prints()` intentionally ignores them.
+
+### Parsing command-line arguments
+
+The `configuration` module provides `InitResult(T)` and `from_args()` to share command-line argument handling across applications while keeping each application's configuration parsing separate.
+
+Define an `init` function that parses the arguments and returns an `InitResult(Configuration)`. The result can represent a successfully parsed configuration, an informational request such as `--help` or `--version`, or an error message.
+
+```zig
+const std = @import("std");
+const terminal_kit = @import("terminal_kit");
+
+const kit_conf = terminal_kit.configuration;
+const Printer = terminal_kit.printer.Printer;
+
+const Configuration = struct {
+    debug: bool = false,
+
+    pub fn init(
+        allocator: std.mem.Allocator,
+        printer: *Printer,
+        args: [][:0]u8,
+    ) !kit_conf.InitResult(Configuration) {
+        _ = allocator;
+
+        for (args[1..]) |arg| {
+            if (std.mem.eql(u8, arg, "--debug")) {
+                return .{ .run = .{ .debug = true } };
+            }
+
+            return .{
+                .err = try printer.format("Unknown argument: {s}\n", .{arg}),
+            };
+        }
+
+        return .{ .run = .{} };
+    }
+};
+
+pub fn main() !void {
+    // Assumes allocator and printer have been initialized.
+    const config = try kit_conf.from_args(
+        Configuration,
+        allocator,
+        &printer,
+        Configuration.init,
+    );
+
+    // Continue using config.
+    _ = config;
+}
+```
+
+`from_args()` allocates the process arguments, invokes the supplied initialization function, and returns the configuration when parsing succeeds. For `.inf`, it exits with status code `0`; for `.err`, it prints the message and exits with status code `1`.
+
+Error messages returned in `.err` must remain valid until they are printed. When using `Printer.format()`, the message is backed by the printer's arena and becomes invalid after `printer.reset()`.
+
+Errors propagated by the initialization function are returned to the caller rather than converted into process exit codes.
 
 ### Converting milliseconds to a duration
 
@@ -207,6 +265,39 @@ const formatted = try value.format(&printer);
 ```
 
 Floating-point values are formatted to two decimal places.
+
+### Formatting terminal colors
+
+The `formatter` module provides `FormatterMatrixUnion` and `FormatterCellUnion` to support terminal color formatting at different levels.
+
+- `FormatterMatrixUnion` handles formatting applied to the matrix as a whole, including the color prefix and reset suffix.
+- `FormatterCellUnion` handles formatting applied to individual cells.
+
+Depending on the implementation, matrix-level formatting may be unnecessary even when individual cells require colors. For example, the following configuration leaves the matrix unformatted while allowing each cell to use ANSI 256-color or RGB formatting.
+
+```zig
+const kit_formatter = @import("terminal_kit").formatter;
+
+pub const FormatterCode = enum {
+    ansi,
+    rgb,
+};
+
+pub fn matrix_union_of(_: FormatterCode) kit_formatter.FormatterMatrixUnion {
+    return .{ .unfo = .{} };
+}
+
+pub fn cell_union_of(f: FormatterCode) kit_formatter.FormatterCellUnion {
+    return switch (f) {
+        .ansi => .{ .ansi = .{} },
+        .rgb => .{ .rgb = .{} },
+    };
+}
+```
+
+Both formatter types expose `fmt_bytes()` to report the byte length associated with their formatting strings. `FormatterMatrixUnion` also provides `prefix()`, `sufix()`, and `format_prefix()`, while `FormatterCellUnion` provides `format()`.
+
+The `.unfo` variant leaves text unformatted. The `.ansi` and `.rgb` variants apply their respective terminal color escape sequences.
 
 ### Working with colors
 

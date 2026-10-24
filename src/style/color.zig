@@ -1,3 +1,5 @@
+const std = @import("std");
+
 /// Supported named colors and their RGB representations.
 pub const Color = enum {
     white,
@@ -86,4 +88,39 @@ const ColorMap = [_][3]u8{
 /// Returns the 8-bit RGB components associated with a named color.
 pub fn rgb_of(c: Color) [3]u8 {
     return ColorMap[@intFromEnum(c)];
+}
+
+/// Converts an RGB color to its corresponding ANSI 256 color code.
+pub fn rgb_to_ansi256(r: u8, g: u8, b: u8) u8 {
+    if (r == g and g == b) {
+        if (r < 8) {
+            return 16;
+        }
+        if (r > 248) {
+            return 231;
+        }
+
+        const scaled_gray_offset = (@as(u16, r) - 8) * 24;
+        const gray_index: u8 = @intCast(scaled_gray_offset / 247);
+
+        return 232 + gray_index;
+    }
+
+    const rr = (@as(u16, r) * 5) / 255;
+    const gg = (@as(u16, g) * 5) / 255;
+    const bb = (@as(u16, b) * 5) / 255;
+
+    return @intCast(16 + 36 * rr + 6 * gg + bb);
+}
+
+test "rgb_to_ansi256 maps grayscale values" {
+    try std.testing.expectEqual(16, rgb_to_ansi256(0, 0, 0));
+    try std.testing.expectEqual(231, rgb_to_ansi256(255, 255, 255));
+    try std.testing.expectEqual(232, rgb_to_ansi256(8, 8, 8));
+}
+
+test "rgb_to_ansi256 maps primary colors" {
+    try std.testing.expectEqual(196, rgb_to_ansi256(255, 0, 0));
+    try std.testing.expectEqual(46, rgb_to_ansi256(0, 255, 0));
+    try std.testing.expectEqual(21, rgb_to_ansi256(0, 0, 255));
 }

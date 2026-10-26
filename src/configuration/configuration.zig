@@ -282,7 +282,7 @@ pub fn parse_enum(
 
     const value = args[i + 1];
 
-    if (std.mem.eql(u8, value, "help")) {
+    if (std.mem.eql(u8, value, "h") or std.mem.eql(u8, value, "help")) {
         try print_enum_options_with_title(T, flag.name, printer);
         std.process.exit(0);
     }

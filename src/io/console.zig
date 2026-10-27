@@ -35,6 +35,12 @@ const ENABLE_ECHO_INPUT: win.DWORD = 0x0004;
 
 const ENABLE_VIRTUAL_TERMINAL_PROCESSING: win.DWORD = 0x0004;
 
+const ENABLE_MOUSE = "\x1b[?1000h";
+const DISABLE_MOUSE = "\x1b[?1000l";
+
+const ENABLE_MOUSE_SGR = "\x1b[?1006h";
+const DISABLE_MOUSE_SGR = "\x1b[?1006l";
+
 const ENABLE_VIRTUAL_TERMINAL_INPUT: win.DWORD = 0x0200;
 
 var original_termios: ?std.posix.termios = null;
@@ -245,6 +251,20 @@ pub fn enable_utf8() !void {
     if (k32.SetConsoleOutputCP(65001) == 0) {
         return error.SetConsoleOutputCPFailed;
     }
+}
+
+/// Enables mouse reporting in the terminal.
+pub fn enable_mouse() !void {
+    try std.fs.File.stdout().writeAll(
+        ENABLE_MOUSE ++ ENABLE_MOUSE_SGR,
+    );
+}
+
+/// Disables mouse reporting in the terminal.
+pub fn disable_mouse() void {
+    std.fs.File.stdout().writeAll(
+        DISABLE_MOUSE_SGR ++ DISABLE_MOUSE,
+    ) catch {};
 }
 
 /// Retrieves the terminal window dimensions for supported platforms.

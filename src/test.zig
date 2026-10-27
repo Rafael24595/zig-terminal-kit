@@ -34,8 +34,8 @@ test {
 
     _ = @import("configuration/configuration.zig");
 
-    _ = @import("io/event.zig");
     _ = @import("io/console.zig");
+    _ = @import("io/event.zig");
     _ = @import("io/formatter.zig");
     _ = @import("io/printer.zig");
 

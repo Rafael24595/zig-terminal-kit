@@ -13,6 +13,7 @@ test {
     std.testing.refAllDeclsRecursive(@import("configuration/configuration.zig"));
 
     std.testing.refAllDeclsRecursive(@import("io/console.zig"));
+    std.testing.refAllDeclsRecursive(@import("io/event.zig"));
     std.testing.refAllDeclsRecursive(@import("io/formatter.zig"));
     std.testing.refAllDeclsRecursive(@import("io/printer.zig"));
 
@@ -33,6 +34,7 @@ test {
 
     _ = @import("configuration/configuration.zig");
 
+    _ = @import("io/event.zig");
     _ = @import("io/console.zig");
     _ = @import("io/formatter.zig");
     _ = @import("io/printer.zig");

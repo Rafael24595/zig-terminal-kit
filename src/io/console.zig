@@ -35,6 +35,8 @@ const ENABLE_ECHO_INPUT: win.DWORD = 0x0004;
 
 const ENABLE_VIRTUAL_TERMINAL_PROCESSING: win.DWORD = 0x0004;
 
+const ENABLE_VIRTUAL_TERMINAL_INPUT: win.DWORD = 0x0200;
+
 var original_termios: ?std.posix.termios = null;
 var original_mode: win.DWORD = 0;
 
@@ -178,6 +180,56 @@ pub fn enable_ansi() !void {
 
     if (k32.SetConsoleMode(handle, new_mode) == 0) {
         return error.SetConsoleModeFailed;
+    }
+}
+
+/// Enables ANSI virtual-terminal input on Windows.
+///
+/// Does nothing on non-Windows platforms.
+pub fn enable_ansi_input() !void {
+    if (builtin.os.tag != .windows) {
+        return;
+    }
+
+    const handle = k32.GetStdHandle(
+        win.STD_INPUT_HANDLE,
+    ) orelse return error.NoStdInput;
+
+    var mode: win.DWORD = undefined;
+    if (k32.GetConsoleMode(handle, &mode) == 0) {
+        return error.GetConsoleModeFailed;
+    }
+
+    const new_mode = mode | ENABLE_VIRTUAL_TERMINAL_INPUT;
+    if (new_mode == mode) {
+        return;
+    }
+
+    if (k32.SetConsoleMode(handle, new_mode) == 0) {
+        return error.SetConsoleModeFailed;
+    }
+}
+
+/// Disables ANSI virtual-terminal input on Windows.
+///
+/// Does nothing on non-Windows platforms.
+pub fn disable_ansi_input() void {
+    if (builtin.os.tag != .windows) {
+        return;
+    }
+
+    const stdin = std.fs.File.stdin();
+    const handle = stdin.handle;
+
+    var mode: win.DWORD = undefined;
+    if (win.kernel32.GetConsoleMode(handle, &mode) == 0) {
+        return;
+    }
+
+    mode &= ~ENABLE_VIRTUAL_TERMINAL_INPUT;
+
+    if (win.kernel32.SetConsoleMode(handle, mode) == 0) {
+        return;
     }
 }
 

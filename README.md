@@ -6,13 +6,16 @@ A lightweight utility library for terminal applications written in **Zig 0.15.1*
 
 ## Features
 
-- **Console utilities:** ANSI escape sequences, terminal input modes, UTF-8 output support on Windows, and terminal size detection.
+- **Console utilities:** ANSI escape sequences, terminal input modes, UTF-8 output support on Windows, terminal size detection, ANSI virtual-terminal input support on Windows and mouse reporting
 - **Printing and formatting:** Write text to files and format strings using an arena allocator.
 - **Configuration:** Flag definitions and argument parsing helpers for numeric and enum values.
 - **Memory tracking:** An allocator wrapper that tracks requested allocation sizes.
 - **General utilities:** Millisecond-to-time conversion and formatting of common value types.
 - **Pseudo-random numbers:** A lightweight, deterministic linear congruential generator (LCG).
 - **Color formatting:** Reusable formatters for ANSI 256-color, RGB, and unformatted terminal output, supporting both matrix-level color prefixes and individual cell formatting.
+- **Console control**: Terminal control utilities, including ANSI virtual-terminal input support on Windows and mouse reporting.
+- **Input event parsing**: Incremental parsing of SGR mouse sequences into structured mouse events.
+- **Panic handling**: Custom panic handlers with a recovery callback to restore terminal state before standard panic handling.
 
 ## Requirements
 
@@ -73,9 +76,11 @@ The root module exposes the following modules:
 | `mini_lcg` | Deterministic pseudo-random number generator. |
 | `time` | Time conversion utilities. |
 | `configuration` | Command-line flags and argument parsing. |
-| `console` | Terminal control and dimension detection. |
+| `console` | Terminal control, dimension detection, ANSI input configuration on Windows, mouse reporting, and terminal dimensions. |
+| `event` | Incremental parsing of SGR mouse sequences and structured mouse event types. |
 | `formatter` | Value formatting utilities and reusable ANSI/RGB color formatters for matrices and individual cells. |
 | `printer` | Text output and formatting. |
+| `panic_handler` | Creates custom panic handlers with a recovery callback. |
 | `color` | Named colors and their 8-bit RGB representations. |
 
 Refer to the source code for the exact public API and function signatures.
@@ -363,11 +368,119 @@ The `console` module provides ANSI constants such as:
 - `RESET_CURSOR` and `CLEAN_ALL`
 - Control character constants such as `CTRL_C`, `SPACE`, `BACKSPACE`, and `DEL`
 
-It also provides functions to enable raw-style input, restore the previous input settings, enable ANSI output processing on Windows, and enable UTF-8 console output on Windows.
+It also provides functions to enable raw-style input, restore the previous input settings, enable ANSI output processing on Windows, enable ANSI virtual-terminal input on Windows, and enable UTF-8 console output on Windows.
 
-When enabling raw mode, call `disable_raw_mode()` before exiting to attempt to restore the previous terminal settings.
+Mouse reporting can be enabled and disabled using `enable_mouse()` and `disable_mouse()`. These functions configure the terminal to report mouse events using escape sequences, including SGR mouse sequences. They do not parse incoming input; use the `event` module to process these sequences.
+
+For example:
+
+```zig
+const kit = @import("zig-terminal-kit");
+const console = kit.console;
+
+try console.enable_ansi_input();
+try console.enable_mouse();
+
+// Read and process terminal input here.
+
+console.disable_mouse();
+console.disable_ansi_input();
+```
+
+`enable_ansi_input()` enables ANSI virtual-terminal input on Windows and does nothing on other platforms. It may return an error if the standard input handle cannot be accessed or configured. Mouse reporting depends on the capabilities of the terminal emulator.
+
+When enabling raw mode, call `disable_raw_mode()` before exiting to attempt to restore the previous terminal settings. Similarly, pair `enable_ansi_input()` and `enable_mouse()` with their corresponding disable functions during normal shutdown.
 
 Console state is stored in module-level variables. These operations are not designed for concurrent calls without external synchronization.
+
+### Parsing mouse events
+
+The `event` module provides an incremental parser for SGR mouse escape sequences. It processes incoming input one byte at a time and reports whether the input was ignored, belongs to an incomplete sequence, is invalid, or completed a mouse event.
+
+```zig
+const kit = @import("zig-terminal-kit");
+
+var parser = kit.event.MouseParser{};
+
+fn processInputByte(byte: u8) void {
+    switch (parser.feed(byte)) {
+        .ignored => {},
+        .pending, .invalid => {},
+        .event => |event| {
+            if (event.pressed and event.button == 0) {
+                // Handle a left mouse button press.
+                handleLeftClick(event.row, event.col);
+            }
+        },
+    }
+}
+```
+
+`MouseEvent` exposes the button code, terminal column, terminal row, and whether the button was pressed or released. Both `col` and `row` use **1-based terminal coordinates**.
+
+Keep the same `MouseParser` instance while processing a stream of input bytes so that incomplete sequences can be accumulated across successive reads.
+
+The parser recognizes SGR mouse sequences; it is not a general-purpose keyboard or terminal escape-sequence parser. Applications that also process keyboard input should account for how other escape sequences and invalid input are handled.
+
+The parser uses a fixed-size buffer to accumulate incoming sequences.
+
+### Handling panics
+
+The `panic_handler` module lets you create a custom panic handler that runs a recovery function before delegating to Zig's default panic handler. This is useful for restoring terminal settings, such as raw mode, mouse input, and cursor visibility, when a panic occurs.
+
+```zig
+const std = @import("std");
+const kit = @import("zig-terminal-kit");
+
+const console = kit.console;
+const PanicHandler = kit.panic_handler.PanicHandler;
+
+pub const panic = PanicHandler(cleanupTerminal).panic;
+
+fn cleanupTerminal() void {
+    console.disable_mouse();
+    console.disable_ansi_input();
+    console.disable_raw_mode();
+
+    const stdout = std.fs.File.stdout();
+    stdout.writeAll(
+        console.SHOW_CURSOR ++
+            console.CLEAN_ALL ++
+            console.RESET_CURSOR,
+    ) catch {};
+}
+```
+
+The recovery function must be declared at compile time as a function with the signature `fn () void`. It is executed before the default panic handler, which retains responsibility for reporting the panic and terminating the program.
+
+Keep recovery code minimal and safe to run even if initialization is incomplete. Unlike normal control flow, panic handling should not rely on `defer` statements to restore resources.
+
+### Parsing mouse events
+
+The `event` module provides an incremental parser for SGR mouse escape sequences. It processes incoming input one byte at a time and reports whether the input was ignored, is part of an incomplete sequence, is invalid, or completed a mouse event.
+
+```zig
+const kit = @import("zig-terminal-kit");
+
+var parser = kit.event.MouseParser{};
+
+fn processInputByte(byte: u8) void {
+    switch (parser.feed(byte)) {
+        .ignored => {},
+        .pending, .invalid => {},
+        .event => |event| {
+            if (event.pressed and event.button == 0) {
+                // Handle a left mouse button press.
+                handleLeftClick(event.row, event.col);
+            }
+        },
+    }
+}
+```
+
+`MouseEvent` exposes the button code, terminal column, terminal row, and whether the button was pressed or released. Both `col` and `row` use **1-based terminal coordinates**.
+
+`MouseParser` is incremental, so keep the same parser instance while processing a stream of input bytes. The parser recognizes SGR mouse sequences; it is not a general-purpose keyboard or terminal escape-sequence parser. Configure mouse reporting in the terminal before expecting mouse events.
 
 ## Memory tracking
 

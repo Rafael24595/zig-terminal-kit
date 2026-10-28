@@ -10,7 +10,10 @@ pub const time = @import("commons/time.zig");
 pub const configuration = @import("configuration/configuration.zig");
 
 pub const console = @import("io/console.zig");
+pub const event = @import("io/event.zig");
 pub const formatter = @import("io/formatter.zig");
 pub const printer = @import("io/printer.zig");
+
+pub const panic_handler = @import("runtime/panic_handler.zig");
 
 pub const color = @import("style/color.zig");

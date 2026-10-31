@@ -38,9 +38,13 @@ pub const MiniLCG = struct {
                 \\ =============================================================================
                 \\  ERROR: MiniLCG is deprecated and will be removed in a future version.
                 \\ -----------------------------------------------------------------------------
-                \\  Please use SplitMix64 instead, which provides better statistical properties
-                \\  and a larger period. The API is similar, so you can replace MiniLCG
-                \\  with SplitMix64 in your code with minimal changes.
+                \\  Reason: MiniLCG uses 32-bit parameters on a 64-bit state, which was changed 
+                \\  from the original 32-bit state in an update, leaving the upper 32 bits 
+                \\  dead/unused and limiting its effective statistical range.
+                \\  
+                \\  Solution: Please use SplitMix64 instead, which provides true 64-bit entropy,
+                \\  better statistical properties, and a much larger period. The API is similar,
+                \\  so you can replace MiniLCG with SplitMix64 with minimal changes.
                 \\ =============================================================================
                 \\
             );

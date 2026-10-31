@@ -11,7 +11,7 @@ A lightweight utility library for terminal applications written in **Zig 0.15.1*
 - **Configuration:** Flag definitions and argument parsing helpers for numeric and enum values.
 - **Memory tracking:** An allocator wrapper that tracks requested allocation sizes.
 - **General utilities:** Millisecond-to-time conversion and formatting of common value types.
-- **Pseudo-random numbers:** A lightweight, deterministic linear congruential generator (LCG).
+- **Pseudo-random numbers:** A lightweight, deterministic SplitMix64 pseudo-random number generator.
 - **Color formatting:** Reusable formatters for ANSI 256-color, RGB, and unformatted terminal output, supporting both matrix-level color prefixes and individual cell formatting.
 - **Console control**: Terminal control utilities, including ANSI virtual-terminal input support on Windows and mouse reporting.
 - **Input event parsing**: Incremental parsing of SGR mouse sequences into structured mouse events.
@@ -73,7 +73,8 @@ The root module exposes the following modules:
 | `allocator` | Allocation tracking utilities. |
 | `clock` | System and monotonic clocks for measuring timestamps and elapsed time. |
 | `frame` | Frame counting and periodic frame-rate calculation (FPS). |
-| `mini_lcg` | Deterministic pseudo-random number generator. |
+| `mini_lcg` | Deprecated: use `splitmix64` instead. |
+| `splitmix64` | Deterministic SplitMix64 pseudo-random number generator. |
 | `time` | Time conversion utilities. |
 | `configuration` | Command-line flags and argument parsing. |
 | `console` | Terminal control, dimension detection, ANSI input configuration on Windows, mouse reporting, and terminal dimensions. |
@@ -84,6 +85,18 @@ The root module exposes the following modules:
 | `color` | Named colors and their 8-bit RGB representations. |
 
 Refer to the source code for the exact public API and function signatures.
+
+## Deprecated modules
+
+The `mini_lcg` module is deprecated and will be removed in a future release.
+
+Use `splitmix64` instead. It provides the `SplitMix64` generator with the same general-purpose functionality:
+
+- Inclusive integer range generation.
+- Floating-point generation in the range `[0.0, 1.0)`.
+- In-place Fisher–Yates shuffling.
+
+The new implementation uses a different algorithm, so generated sequences are not compatible with those produced by `MiniLCG`, even when using the same seed.
 
 ## Usage
 
@@ -324,10 +337,12 @@ The module provides color data only; converting RGB values into terminal escape 
 
 ### Generating deterministic pseudo-random numbers
 
+The `splitmix64` module provides the `SplitMix64` pseudo-random number generator.
+
 ```zig
 const terminal_kit = @import("terminal_kit");
 
-var rng = terminal_kit.mini_lcg.MiniLCG.init(1234);
+var rng = terminal_kit.splitmix64.SplitMix64.init(1234);
 
 // Generate an integer in the inclusive range [0, 10].
 const value = rng.rand_in_range(0, 10);
@@ -342,9 +357,11 @@ rng.shuffle(u8, &values);
 
 The generator is deterministic: using the same seed and making the same sequence of calls produces the same results.
 
-`rand_in_range()` uses an inclusive range. `float()` returns a value in the range `[0.0, 1.0)`. `shuffle()` rearranges the elements of a slice in place using the Fisher–Yates algorithm.
+`rand_in_range()` returns an integer within the inclusive range `[min, max]`. `float()` returns an `f32` in the range `[0.0, 1.0)`. `shuffle()` rearranges the elements of a slice in place using the Fisher–Yates algorithm.
 
-**This generator is not cryptographically secure.** Its modulo-based range mapping can introduce distribution bias, which may also affect the distribution of shuffled permutations.
+The generator uses SplitMix64, a non-cryptographic pseudo-random number generation algorithm. Its output is suitable for general-purpose randomized behavior, but it must not be used for security-sensitive applications.
+
+The modulo-based range mapping in `rand_in_range()` can introduce a small distribution bias, which may also affect the distribution of shuffled permutations.
 
 ### Querying terminal dimensions
 
@@ -508,7 +525,7 @@ The `test-compile` step must be defined in `build.zig` as a dependency on the te
 - Console functions may require a real terminal and can fail when standard input or output is redirected.
 - Terminal size detection is not available on every platform.
 - Raw input mode modifies terminal settings and should be restored before the application exits.
-- `MiniLCG` is intended for reproducible, non-cryptographic use.
+- `SplitMix64` is intended for reproducible, non-cryptographic pseudo-random number generation.
 - `Printer` and `TypeFormatter` may return strings backed by arena allocations. Manage the arena's lifetime accordingly.
 - Allocation tracking does not account for internal allocator overhead.
 

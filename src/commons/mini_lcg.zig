@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const build_options = @import("build_options");
+
 /// Maximum value of `usize` for the current architecture.
 const MAX_USIZE = std.math.maxInt(usize);
 
@@ -20,12 +22,35 @@ const FLOAT_RANDOM_RANGE: f32 = @floatFromInt(
     @as(u32, 1) << FLOAT_RANDOM_BITS,
 );
 
+/// Deprecated: use `SplitMix64` instead.
+/// This type will be removed in a future version.
+///
 /// A small, deterministic pseudo-random number generator based on a
 /// Linear Congruential Generator (LCG).
 ///
 /// This generator is intended for simple non-cryptographic use cases.
 /// It is not suitable for security-sensitive applications.
 pub const MiniLCG = struct {
+    comptime {
+        if (!build_options.allow_deprecated) {
+            @compileError(
+                \\
+                \\ =============================================================================
+                \\  ERROR: MiniLCG is deprecated and will be removed in a future version.
+                \\ -----------------------------------------------------------------------------
+                \\  Reason: MiniLCG uses 32-bit parameters on a 64-bit state, which was changed 
+                \\  from the original 32-bit state in an update, leaving the upper 32 bits 
+                \\  dead/unused and limiting its effective statistical range.
+                \\  
+                \\  Solution: Please use SplitMix64 instead, which provides true 64-bit entropy,
+                \\  better statistical properties, and a much larger period. The API is similar,
+                \\  so you can replace MiniLCG with SplitMix64 with minimal changes.
+                \\ =============================================================================
+                \\
+            );
+        }
+    }
+
     /// Internal generator state. The default seed is 1.
     seed: u64 = 1,
 

@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const build_options = @import("build_options");
+
 /// Maximum value of `usize` for the current architecture.
 const MAX_USIZE = std.math.maxInt(usize);
 
@@ -29,6 +31,22 @@ const FLOAT_RANDOM_RANGE: f32 = @floatFromInt(
 /// This generator is intended for simple non-cryptographic use cases.
 /// It is not suitable for security-sensitive applications.
 pub const MiniLCG = struct {
+    comptime {
+        if (!build_options.allow_deprecated) {
+            @compileError(
+                \\
+                \\ =============================================================================
+                \\  ERROR: MiniLCG is deprecated and will be removed in a future version.
+                \\ -----------------------------------------------------------------------------
+                \\  Please use SplitMix64 instead, which provides better statistical properties
+                \\  and a larger period. The API is similar, so you can replace MiniLCG
+                \\  with SplitMix64 in your code with minimal changes.
+                \\ =============================================================================
+                \\
+            );
+        }
+    }
+
     /// Internal generator state. The default seed is 1.
     seed: u64 = 1,
 

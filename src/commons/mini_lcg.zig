@@ -20,6 +20,9 @@ const FLOAT_RANDOM_RANGE: f32 = @floatFromInt(
     @as(u32, 1) << FLOAT_RANDOM_BITS,
 );
 
+/// Deprecated: use `SplitMix64` instead.
+/// This type will be removed in a future version.
+///
 /// A small, deterministic pseudo-random number generator based on a
 /// Linear Congruential Generator (LCG).
 ///

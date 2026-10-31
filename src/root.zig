@@ -5,6 +5,7 @@ pub const allocator = @import("commons/allocator.zig");
 pub const clock = @import("commons/clock.zig");
 pub const frame = @import("commons/frame.zig");
 pub const mini_lcg = @import("commons/mini_lcg.zig");
+pub const splitmix64 = @import("commons/splitmix64.zig");
 pub const time = @import("commons/time.zig");
 
 pub const configuration = @import("configuration/configuration.zig");

@@ -74,6 +74,7 @@ The root module exposes the following modules:
 | `clock` | System and monotonic clocks for measuring timestamps and elapsed time. |
 | `frame` | Frame counting and periodic frame-rate calculation (FPS). |
 | `mini_lcg` | Deterministic pseudo-random number generator. |
+| `splitmix64` | Deterministic SplitMix64 pseudo-random number generator. |
 | `time` | Time conversion utilities. |
 | `configuration` | Command-line flags and argument parsing. |
 | `console` | Terminal control, dimension detection, ANSI input configuration on Windows, mouse reporting, and terminal dimensions. |

@@ -34,6 +34,11 @@ pub const RuntimeState = struct {
     /// Indicates that a reload has been requested.
     reload: std.atomic.Value(bool) = .init(false),
 
+    /// Indicates whether debug mode is enabled.
+    debug: std.atomic.Value(bool) = .init(false),
+    /// Indicates whether the runtime controls are visible.
+    controls: std.atomic.Value(bool) = .init(false),
+
     /// Wakes a thread waiting for a runtime notification.
     cond: std.Thread.Condition = .{},
 
@@ -41,12 +46,6 @@ pub const RuntimeState = struct {
     ///
     /// Access must be synchronized using `mutex`.
     notification_pending: bool = false,
-
-    pub fn init(max_speed: u64) @This() {
-        return .{
-            .max_speed = max_speed,
-        };
-    }
 
     /// Updates the target frame interval and notifies waiting threads.
     ///
@@ -124,6 +123,22 @@ pub const RuntimeState = struct {
         self.start_timestamp.store(start_timestamp + diff, .release);
 
         self.notify();
+    }
+
+    /// Toggles the debug mode state.
+    pub fn toggle_debug(self: *@This()) void {
+        self.debug.store(
+            !self.debug.load(.acquire),
+            .release,
+        );
+    }
+
+    /// Toggles the runtime controls visibility state.
+    pub fn toggle_controls(self: *@This()) void {
+        self.controls.store(
+            !self.controls.load(.acquire),
+            .release,
+        );
     }
 
     /// Waits for a notification or until the specified timeout expires.
@@ -306,4 +321,28 @@ test "pending notification is consumed without waiting" {
     state.mutex.unlock();
 
     try testing.expect(!pending);
+}
+
+test "toggle_debug switches debug mode state" {
+    var state = RuntimeState{};
+
+    try testing.expect(!state.debug.load(.monotonic));
+
+    state.toggle_debug();
+    try testing.expect(state.debug.load(.monotonic));
+
+    state.toggle_debug();
+    try testing.expect(!state.debug.load(.monotonic));
+}
+
+test "toggle_controls switches controls visibility state" {
+    var state = RuntimeState{};
+
+    try testing.expect(!state.controls.load(.monotonic));
+
+    state.toggle_controls();
+    try testing.expect(state.controls.load(.monotonic));
+
+    state.toggle_controls();
+    try testing.expect(!state.controls.load(.monotonic));
 }

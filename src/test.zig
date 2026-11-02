@@ -8,6 +8,7 @@ test {
     std.testing.refAllDeclsRecursive(@import("commons/clock.zig"));
     std.testing.refAllDeclsRecursive(@import("commons/frame.zig"));
     std.testing.refAllDeclsRecursive(@import("commons/mini_lcg.zig"));
+    std.testing.refAllDeclsRecursive(@import("commons/splitmix64.zig"));
     std.testing.refAllDeclsRecursive(@import("commons/time.zig"));
 
     std.testing.refAllDeclsRecursive(@import("configuration/configuration.zig"));
@@ -30,6 +31,7 @@ test {
     _ = @import("commons/clock.zig");
     _ = @import("commons/frame.zig");
     _ = @import("commons/mini_lcg.zig");
+    _ = @import("commons/splitmix64.zig");
     _ = @import("commons/time.zig");
 
     _ = @import("configuration/configuration.zig");

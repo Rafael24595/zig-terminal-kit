@@ -42,12 +42,6 @@ pub const RuntimeState = struct {
     /// Access must be synchronized using `mutex`.
     notification_pending: bool = false,
 
-    pub fn init(max_speed: u64) @This() {
-        return .{
-            .max_speed = max_speed,
-        };
-    }
-
     /// Updates the target frame interval and notifies waiting threads.
     ///
     /// `speed` is expressed in milliseconds.

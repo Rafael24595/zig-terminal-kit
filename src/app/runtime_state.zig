@@ -23,6 +23,7 @@ pub const RuntimeState = struct {
     /// Provides timestamps for frame timing and pause handling.
     clock: clock.Clock = clock.system_clock,
 
+    /// The maximum allowed frame interval, in milliseconds.
     max_speed: u64 = default_max_speed,
 
     /// Timestamp, in milliseconds, at which the runtime effectively started.

@@ -54,6 +54,36 @@ pub const RuntimeState = struct {
     /// Access must be synchronized using `mutex`.
     notification_pending: bool = false,
 
+    /// Sets the start timestamp, in milliseconds.
+    pub fn set_start_timestamp(self: *@This(), timestamp: i64) void {
+        self.start_timestamp.store(timestamp, .release);
+    }
+
+    /// Returns the current runtime timestamp, in milliseconds.
+    pub fn get_start_timestamp(self: @This()) i64 {
+        return self.start_timestamp.load(.acquire);
+    }
+
+    /// Returns the current pause timestamp, in milliseconds.
+    pub fn get_pause_timestamp(self: @This()) i64 {
+        return self.pause_timestamp.load(.acquire);
+    }
+
+    /// Returns the current runtime duration, in milliseconds.
+    pub fn get_runtime(self: @This()) i64 {
+        const end_ms = if (self.is_paused())
+            self.get_pause_timestamp()
+        else
+            self.clock.now();
+
+        return end_ms - self.get_start_timestamp();
+    }
+
+    /// Returns the current target frame interval, in milliseconds.
+    pub fn get_speed(self: @This()) u64 {
+        return self.speed_ms.load(.acquire);
+    }
+
     /// Updates the target frame interval and notifies waiting threads.
     ///
     /// `speed` is expressed in milliseconds.
@@ -104,6 +134,11 @@ pub const RuntimeState = struct {
         return self.reload.swap(false, .acq_rel);
     }
 
+    /// Returns `true` if the runtime is currently paused.
+    pub fn is_paused(self: @This()) bool {
+        return self.pause.load(.acquire);
+    }
+
     /// Toggles the runtime between paused and running states.
     ///
     /// When pausing, records the pause timestamp.
@@ -132,12 +167,22 @@ pub const RuntimeState = struct {
         self.notify();
     }
 
+    /// Returns `true` if debug mode is currently enabled.
+    pub fn show_debug(self: @This()) bool {
+        return self.debug.load(.acquire);
+    }
+
     /// Toggles the debug mode state.
     pub fn toggle_debug(self: *@This()) void {
         self.debug.store(
             !self.debug.load(.acquire),
             .release,
         );
+    }
+
+    /// Returns `true` if the runtime controls are currently visible.
+    pub fn show_controls(self: @This()) bool {
+        return self.controls.load(.acquire);
     }
 
     /// Toggles the runtime controls visibility state.

@@ -4,6 +4,8 @@ const math = std.math;
 
 const testing = std.testing;
 
+pub const clock = @import("../commons/clock.zig");
+
 const default_max_speed = 3000;
 
 /// Stores shared runtime state for a terminal application.
@@ -16,6 +18,10 @@ const default_max_speed = 3000;
 pub const RuntimeState = struct {
     /// Protects the condition variable and notification state.
     mutex: std.Thread.Mutex = .{},
+
+    //TODO: Use `MonotonicClock` instead of `system_clock` to avoid issues with system time adjustments.
+    /// Provides timestamps for frame timing and pause handling.
+    clock: clock.Clock = clock.system_clock,
 
     max_speed: u64 = default_max_speed,
 
@@ -103,7 +109,7 @@ pub const RuntimeState = struct {
     /// When resuming, adjusts the start timestamp to exclude the paused
     /// duration.
     pub fn toggle_pause(self: *@This()) void {
-        const now = std.time.milliTimestamp();
+        const now = self.clock.now();
 
         const was_paused = self.pause.swap(
             !self.pause.load(.acquire),

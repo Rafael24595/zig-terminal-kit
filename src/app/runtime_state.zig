@@ -54,6 +54,26 @@ pub const RuntimeState = struct {
     /// Access must be synchronized using `mutex`.
     notification_pending: bool = false,
 
+    /// Initializes a new `RuntimeState` instance with the specified parameters.
+    ///
+    /// `start_ms` is the initial start timestamp, in milliseconds.
+    /// `speed_ms` is the initial target frame interval, in milliseconds.
+    /// `debug` indicates whether debug mode is initially enabled.
+    /// `controls` indicates whether the runtime controls are initially visible.
+    pub fn init(
+        start_ms: i64,
+        speed_ms: u64,
+        debug: bool,
+        controls: bool,
+    ) @This() {
+        return .{
+            .start_timestamp = .init(start_ms),
+            .speed_ms = .init(speed_ms),
+            .debug = .init(debug),
+            .controls = .init(controls),
+        };
+    }
+
     /// Sets the start timestamp, in milliseconds.
     pub fn set_start_timestamp(self: *@This(), timestamp: i64) void {
         self.start_timestamp.store(timestamp, .release);

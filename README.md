@@ -127,7 +127,35 @@ pub fn main() !void {
 }
 ```
 
-**Memory lifetime:** Strings returned by `format()` are allocated in the printer's arena. Calling `reset()` invalidates previously formatted strings, so do not use them afterward.
+#### Width-limited formatting
+
+The `Printer` type provides `format_limited()` to format text within a specified maximum width. It returns the visible text and the maximum cursor position allowed for horizontal scrolling.
+
+```zig
+const result = try printer.format_limited(
+    0,
+    20,
+    "Message: {s}",
+    .{"Hello, world!"},
+);
+
+try printer.print(result.text);
+```
+
+The returned `LimitedText` contains:
+
+- `text`: The formatted text limited to the requested width.
+- `max_cursor`: The maximum horizontal cursor position allowed for the formatted text.
+
+When the formatted text exceeds the specified width, `format_limited()` uses `~` markers to indicate hidden content on the left or right. The cursor argument selects the requested horizontal offset and is clamped to the maximum allowed position.
+
+The returned `max_cursor` can be used to coordinate horizontal scrolling across multiple independently formatted strings. For example, an application can calculate the maximum cursor across several text elements so that the longest element determines the available scrolling range.
+
+The returned text is allocated using the printer's arena. Its lifetime is therefore tied to the arena and ends when `printer.reset()` is called.
+
+**Note:** Width and cursor positions are measured in bytes, not terminal display columns. This is suitable for ASCII text, but multibyte UTF-8 characters and terminal escape sequences may require additional handling.
+
+**Memory lifetime:** Strings returned by `format()` and `format_limited()` are allocated in the printer's arena. Calling `reset()` invalidates previously formatted strings, so do not use them afterward.
 
 `print()` and `printf()` propagate write errors. `prints()` intentionally ignores them.
 

@@ -21,7 +21,11 @@ pub const Printer = struct {
     ///
     /// The formatted string is allocated in the arena and remains valid
     /// until the arena is reset or deinitialized.
-    pub fn printf(self: *@This(), comptime fmt: []const u8, args: anytype) !void {
+    pub fn printf(
+        self: *@This(),
+        comptime fmt: []const u8,
+        args: anytype,
+    ) !void {
         const msg = try self.format(fmt, args);
         try self.print(msg);
     }
@@ -38,7 +42,11 @@ pub const Printer = struct {
     /// The caller does not need to free the returned slice individually.
     /// Its memory is reclaimed when reset() is called or the arena is
     /// deinitialized.
-    pub fn format(self: *@This(), comptime fmt: []const u8, args: anytype) ![]u8 {
+    pub fn format(
+        self: *@This(),
+        comptime fmt: []const u8,
+        args: anytype,
+    ) ![]u8 {
         return try std.fmt.allocPrint(self.arena.allocator(), fmt, args);
     }
 

@@ -45,6 +45,8 @@ pub const RuntimeState = struct {
     debug: std.atomic.Value(bool) = .init(false),
     /// Indicates whether the runtime controls are visible.
     controls: std.atomic.Value(bool) = .init(false),
+    /// Indicates the current help cursor position.
+    help_cursor: std.atomic.Value(usize) = .init(0),
 
     /// Wakes a thread waiting for a runtime notification.
     cond: std.Thread.Condition = .{},
@@ -198,6 +200,26 @@ pub const RuntimeState = struct {
             !self.debug.load(.acquire),
             .release,
         );
+    }
+
+    /// Returns the current help cursor position.
+    pub fn get_help_cursor(self: @This()) usize {
+        return self.help_cursor.load(.acquire);
+    }
+
+    /// Increments the help cursor position by one.
+    pub fn inc_help_cursor(self: *@This()) void {
+        self.help_cursor.store(self.get_help_cursor() +| 1, .release);
+    }
+
+    /// Decrements the help cursor position by one, ensuring it does not go below zero.
+    pub fn dec_help_cursor(self: *@This()) void {
+        self.help_cursor.store(self.get_help_cursor() -| 1, .release);
+    }
+
+    /// Sets the help cursor position to the specified page index.
+    pub fn set_help_cursor(self: *@This(), page: usize) void {
+        self.help_cursor.store(page, .release);
     }
 
     /// Returns `true` if the runtime controls are currently visible.

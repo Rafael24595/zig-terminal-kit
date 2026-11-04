@@ -9,6 +9,8 @@ pub const HIDE_CURSOR = "\x1b[?25l";
 /// Shows the terminal cursor using an ANSI escape sequence.
 pub const SHOW_CURSOR = "\x1b[?25h";
 
+/// Clears the terminal line from the cursor position to the end.
+pub const CLEAN_LINE = "\x1b[K";
 /// Clears the visible terminal screen.
 pub const CLEAN_CONSOLE = "\x1B[2J";
 /// Clears the terminal scrollback history when supported by the terminal.

@@ -4,6 +4,8 @@ const math = std.math;
 
 const testing = std.testing;
 
+pub const clock = @import("../commons/clock.zig");
+
 const default_max_speed = 3000;
 
 /// Stores shared runtime state for a terminal application.
@@ -17,6 +19,11 @@ pub const RuntimeState = struct {
     /// Protects the condition variable and notification state.
     mutex: std.Thread.Mutex = .{},
 
+    //TODO: Use `MonotonicClock` instead of `system_clock` to avoid issues with system time adjustments.
+    /// Provides timestamps for frame timing and pause handling.
+    clock: clock.Clock = clock.system_clock,
+
+    /// The maximum allowed frame interval, in milliseconds.
     max_speed: u64 = default_max_speed,
 
     /// Timestamp, in milliseconds, at which the runtime effectively started.
@@ -38,6 +45,8 @@ pub const RuntimeState = struct {
     debug: std.atomic.Value(bool) = .init(false),
     /// Indicates whether the runtime controls are visible.
     controls: std.atomic.Value(bool) = .init(false),
+    /// Indicates the current help cursor position.
+    help_cursor: std.atomic.Value(usize) = .init(0),
 
     /// Wakes a thread waiting for a runtime notification.
     cond: std.Thread.Condition = .{},
@@ -46,6 +55,56 @@ pub const RuntimeState = struct {
     ///
     /// Access must be synchronized using `mutex`.
     notification_pending: bool = false,
+
+    /// Initializes a new `RuntimeState` instance with the specified parameters.
+    ///
+    /// `start_ms` is the initial start timestamp, in milliseconds.
+    /// `speed_ms` is the initial target frame interval, in milliseconds.
+    /// `debug` indicates whether debug mode is initially enabled.
+    /// `controls` indicates whether the runtime controls are initially visible.
+    pub fn init(
+        start_ms: i64,
+        speed_ms: u64,
+        debug: bool,
+        controls: bool,
+    ) @This() {
+        return .{
+            .start_timestamp = .init(start_ms),
+            .speed_ms = .init(speed_ms),
+            .debug = .init(debug),
+            .controls = .init(controls),
+        };
+    }
+
+    /// Sets the start timestamp, in milliseconds.
+    pub fn set_start_timestamp(self: *@This(), timestamp: i64) void {
+        self.start_timestamp.store(timestamp, .release);
+    }
+
+    /// Returns the current runtime timestamp, in milliseconds.
+    pub fn get_start_timestamp(self: @This()) i64 {
+        return self.start_timestamp.load(.acquire);
+    }
+
+    /// Returns the current pause timestamp, in milliseconds.
+    pub fn get_pause_timestamp(self: @This()) i64 {
+        return self.pause_timestamp.load(.acquire);
+    }
+
+    /// Returns the current runtime duration, in milliseconds.
+    pub fn get_runtime(self: @This()) i64 {
+        const end_ms = if (self.is_paused())
+            self.get_pause_timestamp()
+        else
+            self.clock.now();
+
+        return end_ms - self.get_start_timestamp();
+    }
+
+    /// Returns the current target frame interval, in milliseconds.
+    pub fn get_speed(self: @This()) u64 {
+        return self.speed_ms.load(.acquire);
+    }
 
     /// Updates the target frame interval and notifies waiting threads.
     ///
@@ -97,13 +156,18 @@ pub const RuntimeState = struct {
         return self.reload.swap(false, .acq_rel);
     }
 
+    /// Returns `true` if the runtime is currently paused.
+    pub fn is_paused(self: @This()) bool {
+        return self.pause.load(.acquire);
+    }
+
     /// Toggles the runtime between paused and running states.
     ///
     /// When pausing, records the pause timestamp.
     /// When resuming, adjusts the start timestamp to exclude the paused
     /// duration.
     pub fn toggle_pause(self: *@This()) void {
-        const now = std.time.milliTimestamp();
+        const now = self.clock.now();
 
         const was_paused = self.pause.swap(
             !self.pause.load(.acquire),
@@ -125,12 +189,42 @@ pub const RuntimeState = struct {
         self.notify();
     }
 
+    /// Returns `true` if debug mode is currently enabled.
+    pub fn show_debug(self: @This()) bool {
+        return self.debug.load(.acquire);
+    }
+
     /// Toggles the debug mode state.
     pub fn toggle_debug(self: *@This()) void {
         self.debug.store(
             !self.debug.load(.acquire),
             .release,
         );
+    }
+
+    /// Returns the current help cursor position.
+    pub fn get_help_cursor(self: @This()) usize {
+        return self.help_cursor.load(.acquire);
+    }
+
+    /// Increments the help cursor position by one.
+    pub fn inc_help_cursor(self: *@This()) void {
+        self.help_cursor.store(self.get_help_cursor() +| 1, .release);
+    }
+
+    /// Decrements the help cursor position by one, ensuring it does not go below zero.
+    pub fn dec_help_cursor(self: *@This()) void {
+        self.help_cursor.store(self.get_help_cursor() -| 1, .release);
+    }
+
+    /// Sets the help cursor position to the specified page index.
+    pub fn set_help_cursor(self: *@This(), page: usize) void {
+        self.help_cursor.store(page, .release);
+    }
+
+    /// Returns `true` if the runtime controls are currently visible.
+    pub fn show_controls(self: @This()) bool {
+        return self.controls.load(.acquire);
     }
 
     /// Toggles the runtime controls visibility state.

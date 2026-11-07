@@ -4,7 +4,7 @@ const math = std.math;
 
 const testing = std.testing;
 
-pub const clock = @import("../commons/clock.zig");
+const Clock = @import("../commons/clock.zig").Clock;
 
 const default_max_speed = 3000;
 
@@ -19,9 +19,8 @@ pub const RuntimeState = struct {
     /// Protects the condition variable and notification state.
     mutex: std.Thread.Mutex = .{},
 
-    //TODO: Use `MonotonicClock` instead of `system_clock` to avoid issues with system time adjustments.
     /// Provides timestamps for frame timing and pause handling.
-    clock: clock.Clock = clock.system_clock,
+    clock: Clock,
 
     /// The maximum allowed frame interval, in milliseconds.
     max_speed: u64 = default_max_speed,
@@ -63,12 +62,14 @@ pub const RuntimeState = struct {
     /// `debug` indicates whether debug mode is initially enabled.
     /// `controls` indicates whether the runtime controls are initially visible.
     pub fn init(
+        clock: Clock,
         start_ms: i64,
         speed_ms: u64,
         debug: bool,
         controls: bool,
     ) @This() {
         return .{
+            .clock = clock,
             .start_timestamp = .init(start_ms),
             .speed_ms = .init(speed_ms),
             .debug = .init(debug),
@@ -84,6 +85,11 @@ pub const RuntimeState = struct {
     /// Sets the start timestamp, in milliseconds.
     pub fn set_start_timestamp(self: *@This(), timestamp: i64) void {
         self.start_timestamp.store(timestamp, .release);
+    }
+
+    /// Resets the start timestamp to the current time, in milliseconds.
+    pub fn reset_start_timestamp(self: *@This()) void {
+        self.start_timestamp.store(self.clock.now(), .release);
     }
 
     /// Returns the current pause timestamp, in milliseconds.
@@ -283,8 +289,30 @@ pub inline fn should_reload(state: *const RuntimeState) bool {
     return state.reload.load(.acquire);
 }
 
+const MockClock = struct {
+    timestamp: i64,
+
+    fn now(context: ?*anyopaque) i64 {
+        const self: *@This() = @ptrCast(@alignCast(context.?));
+        return self.timestamp;
+    }
+
+    fn clock(self: *@This()) Clock {
+        return .{
+            .context = self,
+            .now_fn = now,
+        };
+    }
+};
+
 test "initial state has no pending requests" {
-    var state = RuntimeState{};
+    var fake_clock = MockClock{
+        .timestamp = 0,
+    };
+
+    var state = RuntimeState{
+        .clock = fake_clock.clock(),
+    };
 
     try testing.expect(!state.pause.load(.monotonic));
     try testing.expect(!state.exit.load(.monotonic));
@@ -294,7 +322,13 @@ test "initial state has no pending requests" {
 }
 
 test "set_speed updates the frame interval" {
-    var state = RuntimeState{};
+    var fake_clock = MockClock{
+        .timestamp = 0,
+    };
+
+    var state = RuntimeState{
+        .clock = fake_clock.clock(),
+    };
 
     state.set_speed(100);
 
@@ -305,7 +339,13 @@ test "set_speed updates the frame interval" {
 }
 
 test "mod_speed increases the frame interval" {
-    var state = RuntimeState{};
+    var fake_clock = MockClock{
+        .timestamp = 0,
+    };
+
+    var state = RuntimeState{
+        .clock = fake_clock.clock(),
+    };
 
     state.mod_speed(100);
 
@@ -316,7 +356,13 @@ test "mod_speed increases the frame interval" {
 }
 
 test "mod_speed decreases the frame interval" {
-    var state = RuntimeState{};
+    var fake_clock = MockClock{
+        .timestamp = 0,
+    };
+
+    var state = RuntimeState{
+        .clock = fake_clock.clock(),
+    };
 
     state.set_speed(100);
     state.mod_speed(-30);
@@ -328,7 +374,13 @@ test "mod_speed decreases the frame interval" {
 }
 
 test "mod_speed clamps the frame interval to zero" {
-    var state = RuntimeState{};
+    var fake_clock = MockClock{
+        .timestamp = 0,
+    };
+
+    var state = RuntimeState{
+        .clock = fake_clock.clock(),
+    };
 
     state.set_speed(10);
     state.mod_speed(-20);
@@ -340,7 +392,13 @@ test "mod_speed clamps the frame interval to zero" {
 }
 
 test "mod_speed clamps the frame interval to max_speed" {
-    var state = RuntimeState{};
+    var fake_clock = MockClock{
+        .timestamp = 0,
+    };
+
+    var state = RuntimeState{
+        .clock = fake_clock.clock(),
+    };
 
     state.set_speed(state.max_speed - 10);
     state.mod_speed(20);
@@ -352,7 +410,13 @@ test "mod_speed clamps the frame interval to max_speed" {
 }
 
 test "mod_speed handles zero adjustment" {
-    var state = RuntimeState{};
+    var fake_clock = MockClock{
+        .timestamp = 0,
+    };
+
+    var state = RuntimeState{
+        .clock = fake_clock.clock(),
+    };
 
     state.set_speed(100);
     state.mod_speed(0);
@@ -364,7 +428,13 @@ test "mod_speed handles zero adjustment" {
 }
 
 test "mod_speed handles minimum adjustment" {
-    var state = RuntimeState{};
+    var fake_clock = MockClock{
+        .timestamp = 0,
+    };
+
+    var state = RuntimeState{
+        .clock = fake_clock.clock(),
+    };
 
     state.set_speed(100);
     state.mod_speed(std.math.minInt(i64));
@@ -376,7 +446,13 @@ test "mod_speed handles minimum adjustment" {
 }
 
 test "mod_speed handles maximum adjustment" {
-    var state = RuntimeState{};
+    var fake_clock = MockClock{
+        .timestamp = 0,
+    };
+
+    var state = RuntimeState{
+        .clock = fake_clock.clock(),
+    };
 
     state.mod_speed(std.math.maxInt(i64));
 
@@ -387,7 +463,13 @@ test "mod_speed handles maximum adjustment" {
 }
 
 test "request_exit sets the exit flag" {
-    var state = RuntimeState{};
+    var fake_clock = MockClock{
+        .timestamp = 0,
+    };
+
+    var state = RuntimeState{
+        .clock = fake_clock.clock(),
+    };
 
     state.request_exit();
 
@@ -395,7 +477,13 @@ test "request_exit sets the exit flag" {
 }
 
 test "reload request is consumed exactly once" {
-    var state = RuntimeState{};
+    var fake_clock = MockClock{
+        .timestamp = 0,
+    };
+
+    var state = RuntimeState{
+        .clock = fake_clock.clock(),
+    };
 
     state.request_reload();
 
@@ -404,7 +492,13 @@ test "reload request is consumed exactly once" {
 }
 
 test "pending notification is consumed without waiting" {
-    var state = RuntimeState{};
+    var fake_clock = MockClock{
+        .timestamp = 0,
+    };
+
+    var state = RuntimeState{
+        .clock = fake_clock.clock(),
+    };
 
     state.set_speed(50);
 
@@ -418,7 +512,13 @@ test "pending notification is consumed without waiting" {
 }
 
 test "toggle_debug switches debug mode state" {
-    var state = RuntimeState{};
+    var fake_clock = MockClock{
+        .timestamp = 0,
+    };
+
+    var state = RuntimeState{
+        .clock = fake_clock.clock(),
+    };
 
     try testing.expect(!state.debug.load(.monotonic));
 
@@ -430,7 +530,13 @@ test "toggle_debug switches debug mode state" {
 }
 
 test "toggle_controls switches controls visibility state" {
-    var state = RuntimeState{};
+    var fake_clock = MockClock{
+        .timestamp = 0,
+    };
+
+    var state = RuntimeState{
+        .clock = fake_clock.clock(),
+    };
 
     try testing.expect(!state.controls.load(.monotonic));
 
@@ -439,4 +545,78 @@ test "toggle_controls switches controls visibility state" {
 
     state.toggle_controls();
     try testing.expect(!state.controls.load(.monotonic));
+}
+
+test "reset_start_timestamp updates the start timestamp" {
+    var fake_clock = MockClock{
+        .timestamp = 500,
+    };
+
+    var state = RuntimeState.init(
+        fake_clock.clock(),
+        100,
+        0,
+        false,
+        false,
+    );
+
+    state.reset_start_timestamp();
+
+    try testing.expectEqual(
+        @as(i64, 500),
+        state.get_start_timestamp(),
+    );
+}
+
+test "reset_start_timestamp replaces a previous timestamp" {
+    var fake_clock = MockClock{
+        .timestamp = 1000,
+    };
+
+    var state = RuntimeState.init(
+        fake_clock.clock(),
+        250,
+        0,
+        false,
+        false,
+    );
+
+    fake_clock.timestamp = 2000;
+
+    state.reset_start_timestamp();
+
+    try testing.expectEqual(
+        @as(i64, 2000),
+        state.get_start_timestamp(),
+    );
+}
+
+test "reset_start_timestamp can be called multiple times" {
+    var fake_clock = MockClock{
+        .timestamp = 100,
+    };
+
+    var state = RuntimeState.init(
+        fake_clock.clock(),
+        0,
+        0,
+        false,
+        false,
+    );
+
+    state.reset_start_timestamp();
+
+    try testing.expectEqual(
+        @as(i64, 100),
+        state.get_start_timestamp(),
+    );
+
+    fake_clock.timestamp = 300;
+
+    state.reset_start_timestamp();
+
+    try testing.expectEqual(
+        @as(i64, 300),
+        state.get_start_timestamp(),
+    );
 }

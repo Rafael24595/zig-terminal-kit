@@ -197,10 +197,13 @@ const Configuration = struct {
 };
 
 pub fn main() !void {
+    var monotonic = try kit_clock.MonotonicClock.init();
+
     // Assumes allocator and printer have been initialized.
     const config = try kit_conf.from_args(
         Configuration,
         allocator,
+        monotonic.clock(),
         &printer,
         Configuration.init,
     );
@@ -278,7 +281,11 @@ The `Counter` type tracks rendered frames and periodically calculates the frame 
 ```zig
 const terminal_kit = @import("terminal_kit");
 
-var counter = terminal_kit.frame.Counter.init();
+var monotonic = try kit_clock.MonotonicClock.init();
+
+var counter = terminal_kit.frame.Counter.init(
+    monotonic.clock(),
+);
 
 // Call once for each rendered frame.
 counter.frame_increment();

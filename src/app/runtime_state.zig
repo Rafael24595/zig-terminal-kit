@@ -76,14 +76,14 @@ pub const RuntimeState = struct {
         };
     }
 
-    /// Sets the start timestamp, in milliseconds.
-    pub fn set_start_timestamp(self: *@This(), timestamp: i64) void {
-        self.start_timestamp.store(timestamp, .release);
-    }
-
     /// Returns the current runtime timestamp, in milliseconds.
     pub fn get_start_timestamp(self: @This()) i64 {
         return self.start_timestamp.load(.acquire);
+    }
+
+    /// Sets the start timestamp, in milliseconds.
+    pub fn set_start_timestamp(self: *@This(), timestamp: i64) void {
+        self.start_timestamp.store(timestamp, .release);
     }
 
     /// Returns the current pause timestamp, in milliseconds.

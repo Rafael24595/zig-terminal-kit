@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Clock = @import("../commons/clock.zig").Clock;
+
 const Printer = @import("../io/printer.zig").Printer;
 const TypeFormatter = @import("../io/formatter.zig").TypeFormatter;
 
@@ -61,9 +63,11 @@ pub fn InitResult(comptime T: type) type {
 pub fn from_args(
     comptime T: type,
     allocator: std.mem.Allocator,
+    clock: Clock,
     printer: *Printer,
     comptime initFn: fn (
         allocator: std.mem.Allocator,
+        clock: Clock,
         printer: *Printer,
         args: [][:0]u8,
     ) anyerror!InitResult(T),
@@ -73,7 +77,12 @@ pub fn from_args(
     errdefer std.process.argsFree(allocator, args);
     errdefer printer.reset();
 
-    const result = try initFn(allocator, printer, args);
+    const result = try initFn(
+        allocator,
+        clock,
+        printer,
+        args,
+    );
 
     const exit_code: u8 = switch (result) {
         .run => |config| return config,

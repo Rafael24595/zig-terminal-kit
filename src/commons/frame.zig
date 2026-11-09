@@ -1,10 +1,11 @@
 const std = @import("std");
 
-const clock = @import("./clock.zig");
+const Clock = @import("./clock.zig").Clock;
 
 /// Tracks rendered frames and periodically calculates their rate over time.
 pub const Counter = struct {
-    clock: clock.Clock,
+    /// Clock used to obtain timestamps for frame-rate calculations.
+    clock: Clock,
     /// Timestamp of the last rate update, in milliseconds since the Unix epoch.
     last_time: i64,
     /// Most recently calculated frames per second.
@@ -13,12 +14,9 @@ pub const Counter = struct {
     frames: u64,
 
     /// Initializes the counter with no recorded frames or calculated rate.
-    pub fn init() @This() {
-        //TODO: Use monotonic clock as default?
-        const clk = clock.system_clock;
-
+    pub fn init(clock: Clock) @This() {
         return .{
-            .clock = clk,
+            .clock = clock,
             .last_time = 0,
             .last_stable = 0,
             .frames = 0,
@@ -70,10 +68,23 @@ const MockClock = struct {
         const self: *@This() = @ptrCast(@alignCast(ptr));
         return self.time;
     }
+
+    fn clock(self: *@This()) Clock {
+        return .{
+            .context = self,
+            .now_fn = now,
+        };
+    }
 };
 
 test "frame_per returns the last stable value on first call" {
-    var counter = Counter.init();
+    var mock = MockClock{
+        .time = 10,
+    };
+
+    var counter = Counter.init(
+        mock.clock(),
+    );
 
     counter.last_time = 0;
     counter.last_stable = 12;
@@ -86,9 +97,15 @@ test "frame_per returns the last stable value on first call" {
 }
 
 test "frame_increment increments the frame counter" {
-    var counter = Counter.init();
-    counter.frames = 0;
+    var mock = MockClock{
+        .time = 0,
+    };
 
+    var counter = Counter.init(
+        mock.clock(),
+    );
+
+    counter.frames = 0;
     counter.frame_increment();
 
     try std.testing.expectEqual(1, counter.frames);
@@ -97,16 +114,28 @@ test "frame_increment increments the frame counter" {
 test "frame_increment saturates at the maximum frame count" {
     const maxU64 = std.math.maxInt(u64);
 
-    var counter = Counter.init();
-    counter.frames = maxU64;
+    var mock = MockClock{
+        .time = 0,
+    };
 
+    var counter = Counter.init(
+        mock.clock(),
+    );
+
+    counter.frames = maxU64;
     counter.frame_increment();
 
     try std.testing.expectEqual(maxU64, counter.frames);
 }
 
 test "frame_per returns the last stable value on its first call" {
-    var counter = Counter.init();
+    var mock = MockClock{
+        .time = 10,
+    };
+
+    var counter = Counter.init(
+        mock.clock(),
+    );
 
     counter.last_time = 0;
     counter.last_stable = 30;
@@ -120,7 +149,13 @@ test "frame_per returns the last stable value on its first call" {
 }
 
 test "frame_per retains the stable value before the interval elapses" {
-    var counter = Counter.init();
+    var mock = MockClock{
+        .time = 0,
+    };
+
+    var counter = Counter.init(
+        mock.clock(),
+    );
 
     counter.last_time = std.time.milliTimestamp();
     counter.last_stable = 30;
@@ -133,11 +168,13 @@ test "frame_per retains the stable value before the interval elapses" {
 }
 
 test "frame_per recalculates the frame rate after the interval elapses" {
-    var counter = Counter.init();
-
     var mock = MockClock{
         .time = 2000,
     };
+
+    var counter = Counter.init(
+        mock.clock(),
+    );
 
     counter.clock = .{
         .context = &mock,

@@ -11,6 +11,9 @@ const ParseError = error{
     MissingArgument,
 };
 
+/// Help text displayed when the user requests help.
+pub const HelperExpandValues = "(use \"help\" to list available modes)";
+
 /// Describes a command-line flag and its help-text metadata.
 pub const Flag = struct {
     /// Short form of the flag, such as "-v".

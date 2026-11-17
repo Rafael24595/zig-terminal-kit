@@ -313,7 +313,7 @@ fn print_enum_options(comptime T: type, printer: *Printer) !void {
 
 fn print_enum_options_with_title(comptime T: type, title: []const u8, printer: *Printer) !void {
     const info = @typeInfo(T);
-    try printer.printf("{s} options:\n", .{title});
+    try printer.printf("\n{s} options:\n", .{title});
     inline for (info.@"enum".fields) |field| {
         try printer.printf(" - {s}\n", .{field.name});
     }
